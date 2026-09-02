@@ -19,9 +19,11 @@ Templates requiring updates: all compatible; no template edit needed.
 Follow-up TODOs:
   - TODO(RATIFICATION_DATE): Confirm 2026-08-31 with the sponsor.
   - PowerSync Tauri SDK is currently alpha (feature spec 001 §14). Phase 0a
-    spike MUST validate offline-write end-to-end before Phase 0 begins;
-    Electron + PowerSync Node.js SDK is the documented fallback. If the
-    fallback is triggered, this section requires a further PATCH amendment.
+    spike MUST validate offline-write end-to-end before Phase 0 begins.
+    Documented fallback: a **Tauri sidecar hosting the PowerSync Node.js
+    SDK** (feature spec 001 research.md §12). Electron migration is
+    explicitly rejected. If the sidecar fallback is triggered, this section
+    requires a further PATCH amendment recording the switch.
 
 Prior versions:
   - v1.0.0 (2026-08-31): Initial ratification. Terminal baseline was Android
@@ -228,7 +230,7 @@ building it in.
 
 - Frontend / app: Next.js, TypeScript
 - Terminal OS: **Windows** (Windows 10/11 IoT Enterprise or Pro; final SKU tied to Intune-enrolment support and OPOS/UPOS driver availability)
-- App shell: **Tauri 2** wrapping the Next.js bundle, using **PowerSync's official Tauri SDK** (native Rust-backed filesystem SQLite that persists across app updates). The Tauri SDK is currently alpha — accepted risk vs. Electron's heavier footprint; Electron + PowerSync Node.js SDK is the documented fallback if Phase 0a (feature spec 001 §11) surfaces blocking instability.
+- App shell: **Tauri 2** wrapping the Next.js bundle, using **PowerSync's official Tauri SDK** (native Rust-backed filesystem SQLite that persists across app updates). The Tauri SDK is currently alpha — accepted risk vs. Electron's heavier footprint. Documented fallback if Phase 0a (feature spec 001 §11) surfaces blocking instability: **a Tauri sidecar hosting the PowerSync Node.js SDK** (shell, build pipeline, kiosk, OTA all unchanged). Electron migration is explicitly rejected.
 - Local client-side data layer: plain SQLite through PowerSync's own watched-query hooks — NO additional client-side layer (e.g. TanStack DB).
 - Kiosk lockdown: **Windows Assigned Access / Shell Launcher** (terminal is locked to the POS app; cashiers cannot reach the desktop).
 - Fleet MDM: **Microsoft Intune** for silent remote deployment, kiosk configuration, and native-shell installer distribution.
@@ -243,8 +245,8 @@ building it in.
 
 Deviations from this stack MUST be approved via a constitutional amendment
 (Governance section below) — they are not routine engineering decisions.
-The Electron/Node.js SDK fallback path is pre-authorised by this amendment
-provided it is triggered by a documented Phase 0a spike failure.
+The **Tauri-sidecar Node.js SDK** fallback path is pre-authorised by this
+amendment provided it is triggered by a documented Phase 0a spike failure.
 
 **Per-store network baseline:**
 

@@ -1,0 +1,31 @@
+[package]
+name = "hgl-pos"
+version = "0.1.0"
+description = "Harvest Group retail POS terminal shell"
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "hgl_pos_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0", features = [] }
+tauri-plugin-updater = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Argon2id PIN hashing lives in the Rust shell (T041).
+argon2 = "0.5"
+rand_core = { version = "0.6", features = ["std"] }
+
+# SQLCipher wiring for the on-till SQLite DB (T133).
+# rusqlite is not enabled by default; PowerSync Tauri SDK owns the connection.
+# This dep is a placeholder until T133 wires the encryption key via DPAPI.
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

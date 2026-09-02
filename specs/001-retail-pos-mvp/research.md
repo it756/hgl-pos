@@ -4,7 +4,7 @@
 
 ## 1. Windows shell for a Next.js POS app
 
-**Decision**: **Tauri 2** wrapping a Next.js **static export** (`output: "export"`), running on **Windows 10/11 IoT Enterprise or Pro**, using **PowerSync's official Tauri SDK** for offline storage and sync. Documented **Electron + PowerSync Node.js SDK** fallback if the Phase 0a spike (§12) fails.
+**Decision**: **Tauri 2** wrapping a Next.js **static export** (`output: "export"`), running on **Windows 10/11 IoT Enterprise or Pro**, using **PowerSync's official Tauri SDK** for offline storage and sync. If Phase 0a (§12) fails, the fallback is a **Tauri sidecar hosting the PowerSync Node.js SDK** — same shell, same build pipeline, same test harness, same OTA mechanism.
 
 **Rationale**:
 
@@ -14,11 +14,12 @@
 - Windows brings a mature OPOS/UPOS driver ecosystem for barcode scanners, receipt printers, cash drawers, and MSRs — simpler peripheral integration than the Android path.
 - Kiosk mode (Windows Assigned Access / Shell Launcher) and fleet MDM (Microsoft Intune) are first-class Windows-native concerns rather than bolt-ons.
 
-**Accepted risk**: the PowerSync Tauri SDK is currently alpha. The JS API is stable but the underlying Rust layer and IPC protocol may change. This is why Phase 0a (§12) exists — validate the SDK end-to-end **before** the rest of the MVP is built on it. Electron + PowerSync Node.js SDK is the pre-authorised fallback (Constitution v1.1.0).
+**Accepted risk**: the PowerSync Tauri SDK is currently alpha. The JS API is stable but the underlying Rust layer and IPC protocol may change. This is why Phase 0a (§12) exists — validate the SDK end-to-end **before** the rest of the MVP is built on it.
 
 **Alternatives considered**:
 
-- **Electron + PowerSync Node.js SDK**: mature but heavier resource footprint; kept as the fallback path.
+- **Tauri + PowerSync Node.js SDK in a Tauri sidecar** (the fallback path — see §12): identical outer shell, same OTA mechanism, same E2E test tooling; only the SDK-hosting substrate changes. Chosen as the fallback because it minimises what has to be re-learned or re-built if the alpha Tauri SDK is unusable.
+- **Electron + PowerSync Node.js SDK**: rejected — swapping the shell mid-project doubles the build/test surface (Electron packaging, Squirrel/AutoUpdate, different signing, different kiosk story, different peripheral integration). Explicitly not a fallback.
 - **Capacitor + Android** (original assumption): retracted — terminals for this project are Windows-based, not Android.
 - **PWA-in-browser / TWA**: no reliable native hardware plugin story on Windows POS terminals; card reader / cash drawer / printer integration would be fragile.
 - **Native WPF/WinUI rewrite**: rejected by Constitution §Additional Constraints (frontend/app = Next.js/TypeScript).
@@ -77,34 +78,35 @@ The custom claim hook is a Supabase Auth "access token hook" (Postgres function)
 
 ### 3.2 Bucket definitions
 
-| Bucket                         | Parameters             | Rows included                                                                                                        | Consumed by                                           |
-| ------------------------------ | ---------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| `store_catalog[store_id]`      | `store_id` from JWT    | `skus` scoped by `store_availability(store_id)`, `promotions` active for the store                                   | Cashier + Store manager tokens                        |
-| `store_prices[store_id]`       | `store_id`             | `price_versions` where `store_id = :store_id OR store_id IS NULL` (global fallback)                                  | Cashier + Store manager                               |
-| `store_stock[store_id]`        | `store_id`             | `current_stock_by_store_sku`, plus `stock_events` for this store from the last 30 days (older events are cloud-only) | Cashier + Store manager                               |
-| `till_own_activity[till_id]`   | `till_id`              | This till's own `sale_events`, `shift_events` (own till only)                                                        | Cashier only                                          |
-| `store_operations[store_id]`   | `store_id`             | `transfers` (in/out), `adjustments` awaiting approval, `low_stock_alerts`                                            | Store manager only (not cashier)                      |
-| `store_users[store_id]`        | `store_id`             | `users` roster + salted-hash credential rows for cashiers assigned to that store                                     | Cashier + Store manager (both need to log in offline) |
-| `fleet_all`                    | (none)                 | Every projection and every event table, fleet-wide                                                                   | HQ admin only                                         |
-| `sync_health[store_id]`        | `store_id`             | `sync_health_snapshots` for the store's tills                                                                        | Store manager                                         |
-| `sync_health_all`              | (none)                 | `sync_health_snapshots` fleet-wide                                                                                   | HQ admin                                              |
-| `audit_log[store_id]`          | `store_id`             | Store-scoped audit entries                                                                                           | Store manager                                         |
-| `audit_log_all`                | (none)                 | Fleet-wide audit                                                                                                     | HQ admin                                              |
-| `device_provisioning[till_id]` | `till_id`, `device_id` | Device credential material, initial catalog seed                                                                     | Till device credential only, one-shot                 |
+| Bucket                         | Parameters             | Rows included                                                                                                        | Consumed by                                                                                                                                                                                                     |
+| ------------------------------ | ---------------------- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `store_catalog[store_id]`      | `store_id` from JWT    | `skus` scoped by `store_availability(store_id)`, `promotions` active for the store                                   | Cashier + Store manager tokens                                                                                                                                                                                  |
+| `store_prices[store_id]`       | `store_id`             | `price_versions` where `store_id = :store_id OR store_id IS NULL` (global fallback)                                  | Cashier + Store manager                                                                                                                                                                                         |
+| `store_stock[store_id]`        | `store_id`             | `current_stock_by_store_sku`, plus `stock_events` for this store from the last 30 days (older events are cloud-only) | Cashier + Store manager                                                                                                                                                                                         |
+| `till_own_activity[till_id]`   | `till_id`              | This till's own `sale_events`, `shift_events` (own till only)                                                        | Cashier only                                                                                                                                                                                                    |
+| `store_operations[store_id]`   | `store_id`             | `transfers` (in/out), `adjustments` awaiting approval, `low_stock_alerts`                                            | Store manager only (not cashier)                                                                                                                                                                                |
+| `store_users[store_id]`        | `store_id`             | `users` roster + salted-hash credential rows for cashiers assigned to that store                                     | Cashier + Store manager + **Till device credential** (see §3.3 rationale — keeps the roster fresh under the device's own long-lived sync, so offline cashier login continues to work after cashier JWTs expire) |
+| `fleet_all`                    | (none)                 | Every projection and every event table, fleet-wide                                                                   | HQ admin only                                                                                                                                                                                                   |
+| `sync_health[store_id]`        | `store_id`             | `sync_health_snapshots` for the store's tills                                                                        | Store manager                                                                                                                                                                                                   |
+| `sync_health_all`              | (none)                 | `sync_health_snapshots` fleet-wide                                                                                   | HQ admin                                                                                                                                                                                                        |
+| `audit_log[store_id]`          | `store_id`             | Store-scoped audit entries                                                                                           | Store manager                                                                                                                                                                                                   |
+| `audit_log_all`                | (none)                 | Fleet-wide audit                                                                                                     | HQ admin                                                                                                                                                                                                        |
+| `device_provisioning[till_id]` | `till_id`, `device_id` | Device credential material, initial catalog seed                                                                     | Till device credential only, one-shot                                                                                                                                                                           |
 
 ### 3.3 Role → bucket subscription
 
-| Role                                                                       | Subscribes to                                                                                                                      | Rejects (via sync rule + RLS)                                                                                |
-| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| **Cashier** (JWT `role=cashier`, `store_id=S`, `till_id=T`)                | `store_catalog[S]`, `store_prices[S]`, `store_stock[S]` (read-only projection), `till_own_activity[T]`, `store_users[S]`           | Cannot pull other tills' sales/shifts; cannot pull other stores; cannot pull audit or transfer-approval rows |
-| **Store manager** (JWT `role=store_manager`, `store_id=S`)                 | `store_catalog[S]`, `store_prices[S]`, `store_stock[S]`, `store_operations[S]`, `store_users[S]`, `sync_health[S]`, `audit_log[S]` | Cannot pull other stores' data; cannot mint HQ-only price changes                                            |
-| **HQ admin** (JWT `role=hq_admin`)                                         | `fleet_all`, `sync_health_all`, `audit_log_all`                                                                                    | Nothing at the sync layer (RLS still bounds writes)                                                          |
-| **Till device credential** (JWT `role=device`, `device_id=D`, `till_id=T`) | `device_provisioning[T]` only, until first successful cashier login on the device                                                  | Not a human role; does NOT grant read of catalog/stock — that comes with the cashier JWT after login         |
+| Role                                                                                     | Subscribes to                                                                                                                      | Rejects (via sync rule + RLS)                                                                                                                                                                                                                     |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cashier** (JWT `role=cashier`, `store_id=S`, `till_id=T`)                              | `store_catalog[S]`, `store_prices[S]`, `store_stock[S]` (read-only projection), `till_own_activity[T]`, `store_users[S]`           | Cannot pull other tills' sales/shifts; cannot pull other stores; cannot pull audit or transfer-approval rows                                                                                                                                      |
+| **Store manager** (JWT `role=store_manager`, `store_id=S`)                               | `store_catalog[S]`, `store_prices[S]`, `store_stock[S]`, `store_operations[S]`, `store_users[S]`, `sync_health[S]`, `audit_log[S]` | Cannot pull other stores' data; cannot mint HQ-only price changes                                                                                                                                                                                 |
+| **HQ admin** (JWT `role=hq_admin`)                                                       | `fleet_all`, `sync_health_all`, `audit_log_all`                                                                                    | Nothing at the sync layer (RLS still bounds writes)                                                                                                                                                                                               |
+| **Till device credential** (JWT `role=device`, `device_id=D`, `till_id=T`, `store_id=S`) | `device_provisioning[T]`, `store_users[S]` (roster refresh — see rationale)                                                        | Does NOT grant read of catalog / stock / sale history — those come with the cashier JWT after login. Cannot write anything except upload-queue events for its own till (validated by RLS + the `tg_validate_cashier_belongs_to_store()` trigger). |
 
 ### 3.4 Isolation guarantees
 
 - No bucket exposes another store's rows to a cashier or store-manager token, per Principle III / NFR-006. This is enforced twice: PowerSync sync-rule parameterisation on `store_id`, and Postgres RLS on the same column (belt + braces — a bug in either alone doesn't leak).
 - Cross-till visibility inside a store is admin-panel-only: cashier tokens receive `till_own_activity[T]` only, so Till 3 cannot see Till 4's sales history via the local DB. Store managers see the store's aggregate via `store_operations` and reports, not via a per-till sync bucket.
+- The device credential intentionally has access to `store_users[S]` so the roster stays fresh under the till's own long-lived sync — a till idle for weeks with no cashier logins will still re-pull an updated `pin_hash` on reconnect, which is the guarantee FR-042 / EC-14 depend on. It still cannot read any cashier's actual sale or shift history because those live in `till_own_activity` (cashier-only) and `store_operations` (manager-only).
 - Every sync rule is covered by a test in `powersync/tests/` that boots a fake JWT with each role and asserts row visibility.
 
 **Rationale**:
@@ -229,15 +231,15 @@ Metrics surfaced on both:
 
 ## 7. Design ↔ Principle trace
 
-| Principle | Concrete artefact(s)                                                                                                                                                                                             | Where                                                                                                                                             |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| I         | Zero network calls in sale/shift/login paths; all data reads via local SQLite through PowerSync SDK                                                                                                              | `apps/pos/src/lib/db`, `apps/pos/src/lib/auth`                                                                                                    |
-| II        | Every stock-affecting write goes to a `*_events` table; `current_stock_by_store_sku` is a trigger-maintained projection                                                                                          | `supabase/migrations/*_stock_events.sql`, [data-model.md](data-model.md)                                                                          |
-| III       | Sync buckets parameterised by `store_id`/`till_id`; no LAN discovery code; admin-only cross-till dashboards                                                                                                      | `powersync/sync-rules.yaml`, [contracts/powersync-sync-rules.yaml](contracts/powersync-sync-rules.yaml)                                           |
-| IV        | PK on `event_id`; `ON CONFLICT DO NOTHING`; persisted queue via PowerSync SDK; batched backlog upload; exponential backoff + jitter in `apps/pos/src/lib/sync`                                                   | Ingest triggers, sync module                                                                                                                      |
-| V         | `sale_events`/`shift_events`/`price_change_events`/`audit_log` all append-only; sales carry stamped `price_version_id`; adjustments carry `reason_code`+`approver_id`                                            | [data-model.md](data-model.md), [contracts/rls-policies.sql](contracts/rls-policies.sql)                                                          |
-| VI        | Sync-health dashboard shows per-cohort `app_version`; migration policy §6; no fleet-wide deploy tooling built                                                                                                    | `apps/admin/src/app/sync-health`, docs/ops/canary.md (Phase 5)                                                                                    |
-| VII       | RLS policies + sync-rule params + client route guards; Argon2id PIN hashing (WASM in `apps/pos/src/lib/auth`); SQLCipher for on-device SQLite; TLS everywhere; PCI-relevant card handling via reader tokens only | [contracts/rls-policies.sql](contracts/rls-policies.sql), [contracts/powersync-sync-rules.yaml](contracts/powersync-sync-rules.yaml), auth module |
+| Principle | Concrete artefact(s)                                                                                                                                                                                                                                           | Where                                                                                                                                             |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| I         | Zero network calls in sale/shift/login paths; all data reads via local SQLite through PowerSync SDK                                                                                                                                                            | `apps/pos/src/lib/db`, `apps/pos/src/lib/auth`                                                                                                    |
+| II        | Every stock-affecting write goes to a `*_events` table; `current_stock_by_store_sku` is a trigger-maintained projection                                                                                                                                        | `supabase/migrations/*_stock_events.sql`, [data-model.md](data-model.md)                                                                          |
+| III       | Sync buckets parameterised by `store_id`/`till_id`; no LAN discovery code; admin-only cross-till dashboards                                                                                                                                                    | `powersync/sync-rules.yaml`, [contracts/powersync-sync-rules.yaml](contracts/powersync-sync-rules.yaml)                                           |
+| IV        | PK on `event_id`; `ON CONFLICT DO NOTHING`; persisted queue via PowerSync SDK; batched backlog upload; exponential backoff + jitter in `apps/pos/src/lib/sync`                                                                                                 | Ingest triggers, sync module                                                                                                                      |
+| V         | `sale_events`/`shift_events`/`price_change_events`/`audit_log` all append-only; sales carry stamped `price_version_id`; adjustments carry `reason_code`+`approver_id`                                                                                          | [data-model.md](data-model.md), [contracts/rls-policies.sql](contracts/rls-policies.sql)                                                          |
+| VI        | Sync-health dashboard shows per-cohort `app_version`; migration policy §6; no fleet-wide deploy tooling built                                                                                                                                                  | `apps/admin/src/app/sync-health`, `docs/ops/canary.md` (delivered in Phase 5 — see plan.md project structure)                                     |
+| VII       | RLS policies + sync-rule params + client route guards; Argon2id PIN hashing in the Tauri Rust shell; **SQLCipher** for the on-device SQLite database (supported by the PowerSync Tauri SDK); TLS everywhere; PCI-relevant card handling via reader tokens only | [contracts/rls-policies.sql](contracts/rls-policies.sql), [contracts/powersync-sync-rules.yaml](contracts/powersync-sync-rules.yaml), auth module |
 
 ## 8. Deferred / follow-on decisions
 
@@ -275,7 +277,7 @@ Master data (prices, promotions, users) is edited only at HQ and only online —
 
 Trustworthy local time is the one shared truth a till _reads locally_ and _writes financial results based on_: see EC-17 / FR-044 for the NTP + skew-refusal rule that keeps this correct. Deterministic resolution of concurrent HQ price changes is EC-19.
 
-## 12. Phase 0a offline-write spike
+## 12. Phase 0a offline-write spike (and fallback plan)
 
 Because the PowerSync Tauri SDK is alpha, Phase 0a is a mandatory de-risking task **before Phase 0 begins**. Scope:
 
@@ -285,13 +287,39 @@ Because the PowerSync Tauri SDK is alpha, Phase 0a is a mandatory de-risking tas
 - Cycle the app and the machine; confirm the queued events survive.
 - Bring the network back up; confirm the sale and the shift open sync exactly once to Supabase with correct `server_ts` assignment and no duplicates.
 
-**Pass criteria** (all must hold):
+**Pass criteria** (all must hold — mirrored to SC-012):
 
-- SDK does not crash under normal write load.
-- Local SQLite file survives an app update install (not just a restart).
-- IPC between Tauri Rust shell and the WebView JS is stable under repeat cycles.
-- No data loss under `kill -9` mid-write.
+1. SDK does not crash under normal write load.
+2. Local SQLite file survives an app-update install (not just a restart).
+3. IPC between Tauri Rust shell and the WebView JS is stable under repeat cycles.
+4. No data loss under `kill -9` mid-write.
 
-**Failure ⇒ pre-authorised fallback**: switch to Electron + PowerSync's Node.js SDK. The switch decision is made here, at Phase 0a, not later — because after Phase 0 has landed, Tauri-specific code (updater config, native plugin adapters, Windows-shell integration) accretes fast.
+### 12.1 Fallback: Tauri sidecar hosting the PowerSync Node.js SDK
 
-**Deliverable**: a written spike report attached to the feature (`specs/001-retail-pos-mvp/spike-report.md`, when Phase 0a is executed) documenting pass/fail on each criterion and the resulting decision.
+**Explicitly not Electron.** Migrating the shell mid-project is rejected (see §1 alternatives): different packaging, different signing, different kiosk story, different peripheral integration, different OTA. The fallback keeps every one of those choices identical and only swaps the SDK-hosting substrate.
+
+The fallback plan:
+
+- Ship a stripped **Node.js 20 runtime** (~30 MB) as a **Tauri sidecar** (`tauri.conf.json > tauri > bundle > externalBin`). Tauri natively manages sidecar lifecycle (spawn, restart, shutdown on app exit).
+- The sidecar hosts the mature **PowerSync Node.js SDK**. SQLite storage lives on the filesystem under `%APPDATA%\HGL POS\powersync\` — same location and update-survival guarantees as the primary Tauri SDK path.
+- The WebView JS communicates with the sidecar via a **localhost-bound HTTP/JSON API** on a randomised loopback port (never a public port), or Tauri's own `invoke` bridging a Rust command that forwards to the sidecar. Whichever ends up simpler in the spike report is fine — both keep the JS API the app uses (`db.query`, `db.insert`, `watchQuery`) unchanged.
+- The Tauri Rust shell keeps SQLCipher for at-rest encryption regardless of which SDK is hosting the DB.
+
+**What stays identical between primary and fallback**:
+
+- Tauri shell, WebView2 runtime, kiosk lockdown, Intune enrolment.
+- `tauri-plugin-updater` OTA channel and cadence.
+- Signed installer pipeline.
+- WebDriverIO + tauri-driver E2E tests.
+- OPOS/UPOS peripheral integration.
+- Every artefact under `apps/pos/src/` (the app UI code touches an `IDb` interface implemented by either substrate).
+
+**What changes**:
+
+- One additional binary in the installer (Node.js runtime).
+- Sidecar lifecycle telemetry added to sync-health.
+- A small `IDb` adapter shim in `apps/pos/src/lib/db/` (adapter to the sidecar HTTP JSON API) instead of importing the Tauri SDK directly.
+
+**Decision timing**: the switch decision is made here, at Phase 0a, not later. After Phase 0 has landed, sync-rules, migrations, and event schemas are stable enough that the swap is a `IDb` adapter change plus a bundling change. Delaying past Phase 0 turns it into a full-app-team stop-the-line event.
+
+**Deliverable**: a written spike report at `specs/001-retail-pos-mvp/spike-report.md` (created when Phase 0a is executed) documenting pass/fail on each criterion and the resulting decision. If any criterion fails, the report MUST also record which sidecar transport (loopback HTTP vs Tauri `invoke`) was picked and why.

@@ -57,10 +57,13 @@ bucket_definitions:
         AND server_ts > now() - interval '30 days'
 
   store_users:
-    # Cashier roster for offline login (US9) — includes pin_hash
+    # Cashier roster for offline login (US9) — includes pin_hash.
+    # Also subscribed by the till device credential so the roster stays fresh
+    # under the till's own long-lived sync even when no cashier is logged in
+    # (research.md §3.4 rationale; guards FR-042 / EC-14).
     parameters: |
       SELECT request.jwt() ->> 'store_id' AS store_id
-      WHERE (request.jwt() ->> 'role') IN ('cashier', 'store_manager')
+      WHERE (request.jwt() ->> 'role') IN ('cashier', 'store_manager', 'device')
     data:
       - SELECT user_id, role, store_id, full_name, pin_hash, pin_updated_at,
         is_active, created_at, updated_at
@@ -197,5 +200,7 @@ bucket_definitions:
 #   - cashier at store A cannot see store B rows in any bucket
 #   - cashier at till T cannot see till T+1 sale_events / shift_events
 #   - store manager cannot see other stores' transfers or audit
-#   - device credential JWT cannot see catalog or stock without a cashier login
+#   - device credential JWT sees store_users[S] (roster refresh — FR-042/EC-14)
+#     and device_provisioning[T] — but NOT catalog, prices, stock, sales,
+#     shifts, transfers, adjustments, audit, or sync_health
 # ---------------------------------------------------------------

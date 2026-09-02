@@ -1,0 +1,24 @@
+{
+  "name": "@hgl/config",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Shared tsconfig, eslint, and prettier for the HGL POS monorepo",
+  "type": "module",
+  "exports": {
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig/react.json": "./tsconfig/react.json",
+    "./tsconfig/node.json": "./tsconfig/node.json",
+    "./eslint": "./eslint/index.mjs",
+    "./prettier": "./prettier/index.mjs"
+  },
+  "files": [
+    "tsconfig",
+    "eslint",
+    "prettier"
+  ],
+  "peerDependencies": {
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.5.0"
+  }
+}

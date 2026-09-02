@@ -6,7 +6,7 @@
 **Created**: 2026-08-31
 **Input**: Harvest Group Retail POS Requirements Specification (internal doc, 16-store rollout)
 **Related systems**: Harvest LPG ERP (sibling system — shares stack pattern, hardware pattern, and fiscalization approach; no data integration between the two)
-**Constitution**: [.specify/memory/constitution.md](../../.specify/memory/constitution.md) — v1.0.0
+**Constitution**: [.specify/memory/constitution.md](../../.specify/memory/constitution.md) — v1.1.0
 
 ---
 
@@ -98,7 +98,7 @@ _(Covers FR-023…FR-028, FR-038, NFR-010; corresponds to rollout Phase 1 (read-
 2. **Given** a till has pending, unsynced `sale` events still queued locally, **When** a cashier or manager performs a physical stock count, **Then** the count delta is computed against the till's full local ledger _including_ its own unsynced pending events, not a stale cached total, and the resulting event is tagged `count_correction`.
 3. **Given** a stock adjustment above the configured threshold is submitted, **When** approval is missing, **Then** the adjustment is not applied and the request is queued for approval with reason code, actor, and timestamp.
 
-_(Covers FR-013, FR-016, FR-017, FR-021, FR-022; corresponds to rollout Phase 2.)_
+_(Covers FR-013, FR-016, FR-017, FR-018, FR-020, FR-021, FR-022; corresponds to rollout Phase 2.)_
 
 ---
 
@@ -115,7 +115,7 @@ _(Covers FR-013, FR-016, FR-017, FR-021, FR-022; corresponds to rollout Phase 2.
 1. **Given** Store A dispatches 50 units of a SKU to Store B, **When** dispatch is confirmed, **Then** a `transfer_out` event fires at Store A and the stock enters an "in transit" state (not sellable at either store), **And when** Store B receives only 48 units and confirms receipt, **Then** a `transfer_in` event fires for 48 units and a separate variance event records the 2-unit discrepancy — the variance is never silently absorbed into the transfer quantity.
 2. **Given** `transfer_in` arrives at the server before `transfer_out` due to network timing, **When** a manager views the transfer, **Then** the UI state is driven by a server-side state machine on the paired events and never shows "received" before "dispatched."
 
-_(Covers FR-014, FR-015; corresponds to rollout Phase 3.)_
+_(Covers FR-014, FR-015, FR-019; corresponds to rollout Phase 3.)_
 
 ---
 
@@ -183,7 +183,7 @@ _(Covers FR-029…FR-034; corresponds to rollout Phase 4.)_
 1. **Given** a new app/schema version is deployed, **When** it is rolled out, **Then** it goes to exactly one pilot store first, tills on the old and new schema version can both sync against the same backend without error (backward-compatible migration), and rollout to the remaining 15 stores is staged, never simultaneous.
 2. **Given** an "offline for 3 days" drill has been executed on the pilot store, **When** its result is captured in the rollout record, **Then** rollout may progress to further stores; without a passed drill, rollout is blocked.
 
-_(Covers NFR-013, NFR-015, EC-13; corresponds to rollout Phase 5.)_
+_(Covers NFR-013, NFR-015, FR-039, EC-13; corresponds to rollout Phase 5.)_
 
 ---
 
@@ -202,7 +202,7 @@ _(Covers NFR-013, NFR-015, EC-13; corresponds to rollout Phase 5.)_
 3. **Given** a cashier record was updated at HQ (new hire, PIN change, or role change) while a till was offline, **When** the till is still offline, **Then** the update does not take effect at that till; the affected cashier cannot log in with the new credential, and staff are trained on this behaviour. Once the till syncs, the update becomes effective.
 4. **Given** the sync layer needs to re-authenticate to PowerSync after an extended offline stretch, **When** it does so, **Then** it uses the till's device-level credential and MUST NOT force the currently-logged-in cashier to re-enter their PIN.
 
-_(Covers FR-008, FR-035, FR-040, FR-041, FR-042, NFR-003, NFR-009; corresponds to rollout Phase 1.)_
+_(Covers FR-008, FR-035, FR-040, FR-041, FR-042, FR-043, FR-044, NFR-003, NFR-009; corresponds to rollout Phase 1.)_
 
 ---
 
@@ -316,6 +316,8 @@ Requirements are numbered for traceability (FR-xxx). Each is independently testa
 - **FR-038**: System MUST maintain a system-wide, immutable audit log covering price changes and stock adjustments at minimum.
 - **FR-039**: A fresh/new till onboarding MUST require live connectivity for its initial catalog/price/stock pull; there is no local device to seed from (no Hub design — §9).
 
+> **Foundational FRs — no dedicated User Story.** FR-036 (store/branch master data) is delivered in rollout Phase 0 (Foundation) and validated by every downstream story that touches `store_id`; FR-037 is optional (MAY). Everything else in §4 maps to at least one User Story in §3.
+
 ---
 
 ## 5. Non-Functional Requirements
@@ -330,6 +332,7 @@ Requirements are numbered for traceability (FR-xxx). Each is independently testa
 - **NFR-008 (Scalability)**: Must support 16 stores at launch with headroom for additional stores, and multiple concurrent tills per store.
 - **NFR-009 (Security)**: Role-based access control across all modules; data encrypted at rest and in transit; PCI-relevant handling wherever card payment data touches the POS.
 - **NFR-010 (Integrity)**: Transaction logs are immutable. Full audit trail for price changes and stock adjustments. Sync operations are idempotent and safely retryable — no double-application of stock deductions on retry.
+- **NFR-011 (Compliance)** _(deferred — forward reference only)_: ZRA Smart Invoice / VSDC fiscalisation is a compliance gate for shipping the sales module to a live store, per Constitution v1.1.0 Principle V. This spec does NOT build fiscalisation; delivery is in companion spec `002-fiscalisation` (planned) and MUST land before pilot go-live. See §14 for the deferral and §15 for the assumption that the LPG ERP integration approach carries over.
 - **NFR-012 (Usability)**: Minimal-click cashier flow; fast onboarding/training time for new cashiers.
 - **NFR-013 (Maintainability)**: Centralized configuration and deployment management across 16 sites; canary/staged rollout — never a big-bang deploy to all stores.
 - **NFR-014 (DR/Backup)**: Local data must survive extended HQ-connectivity loss (days, not just hours). Central database has automated backups and a tested restore procedure. A till offline beyond a defined threshold surfaces an operator-visible warning.
@@ -415,7 +418,7 @@ Postgres upserts on `event_id`. A duplicate `event_id` arriving twice (e.g., ret
 ### Measurable Outcomes
 
 - **SC-001**: 100 % of sales attempted at a pilot till during a 3-day disconnected-from-WAN drill complete successfully, print or issue a receipt, and appear exactly once server-side after reconnect (no duplicates, no losses).
-- **SC-002**: 95 % of scan-to-total transactions complete in under 2 seconds on the target terminal hardware, measured across a representative daily traffic sample.
+- **SC-002**: 95 % of scan-to-total transactions complete in under 2 seconds on the **reference Windows POS SKU established during Phase 0a**, measured across a representative daily traffic sample.
 - **SC-003**: After a fleet-wide simultaneous reconnect from a simulated regional ISP outage, 100 % of tills successfully upload their backlogs without operator intervention and the backend absorbs the reconnect burst without dropping requests.
 - **SC-004**: For any concurrent-offline oversell scenario across two or more tills, the derived `current_stock` after both tills sync equals the exact sum of the deltas involved, and the affected SKU is surfaced as "Oversold" on the Inventory Dashboard within one sync cycle.
 - **SC-005**: Every completed sale in the system carries the price that was cached on the till at time of sale; a random-sample audit of 100 sales across pre- and post-price-change windows shows zero retroactive re-pricing.
@@ -425,20 +428,22 @@ Postgres upserts on `event_id`. A duplicate `event_id` arriving twice (e.g., ret
 - **SC-009**: A newly-provisioned till, previously unknown to the system, requires no more than one operator-assisted connectivity session to complete its initial catalog/price/stock pull and reach an operational state.
 - **SC-010**: New cashiers, given the standard training pack, reach independent operation on the till (successful shift open, minimum 20 sales without supervisor intervention, correct cash-up) within a defined training-time target to be set during planning.
 - **SC-011**: During an offline drill, 100 % of cashier login, shift-open, and shift-close operations complete locally against cached credentials with no network dependency, and on reconnect every shift lifecycle event syncs exactly once with correct cashier attribution and correct over/short reconciliation.
+- **SC-012**: The Phase 0a offline-write spike PASSES all four criteria in [research.md §12](research.md): (a) SDK stable under normal write load, (b) local SQLite file survives an app-update install (not just restart), (c) IPC between Tauri Rust shell and WebView JS stable under repeat cycles, (d) no data loss under `kill -9` mid-write. FAIL on any criterion triggers the documented sidecar fallback before Phase 0 begins.
+- **SC-013**: A simulated Phase 5 load run with ≥ 32 concurrent tills (2× the launch fleet, per NFR-008 headroom target) completes a full evening cash-up cycle without regression on SC-001, SC-002, or SC-003 measurements.
 
 ---
 
 ## 11. Rollout Plan (Milestones)
 
-| Phase                                                      | Scope                                                                                                                                                                                                                              | Exit Criteria                                                                                                                                                                                                              |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Phase 0a — Offline-write spike** (before all other work) | Smallest possible end-to-end slice on the actual Tauri + PowerSync Tauri SDK stack: one till, one offline sale, sync on reconnect. Purpose: surface any blocking alpha-SDK instability before the rest of the MVP is built on top. | One offline sale completes locally, syncs exactly once on reconnect. If BLOCKED: fall back to Electron + PowerSync Node.js SDK (documented in [research.md §1](research.md)) — this decision MUST be made here, not later. |
-| **Phase 0 — Foundation**                                   | Auth/roles, store & till master data, local DB schema, PowerSync sync rules per store, basic sync-health screen                                                                                                                    | Sync rules verified isolated per store (EC-06)                                                                                                                                                                             |
-| **Phase 1 — MVP core** (1 pilot store)                     | Offline-capable checkout/POS (US1), shift/cash-up, read-only centrally-set price list (US2 basic)                                                                                                                                  | A full offline sale + reconnect sync cycle passes on real hardware                                                                                                                                                         |
-| **Phase 2 — Inventory** (pilot store)                      | Stock counts, adjustments, low-stock alerts, oversell flagging (US3)                                                                                                                                                               | Overselling scenario (US3 §1) verified end-to-end                                                                                                                                                                          |
-| **Phase 3 — Multi-store**                                  | Inter-store transfers (US4), full price engine (US2 promotions, effective-dated pricing, audit trail), per-till sync rolled to additional stores                                                                                   | Transfer variance and in-transit state machine (EC-04) verified across two real stores                                                                                                                                     |
-| **Phase 4 — Reporting**                                    | Sales/inventory reports, till reconciliation, HQ multi-store dashboard (US7)                                                                                                                                                       | Report SLA (NFR-002) met against representative data volume                                                                                                                                                                |
-| **Phase 5 — Hardening & full rollout**                     | DR drills ("offline for 3 days", US6), alerting, canary deploy tooling (US8), staged rollout to remaining stores                                                                                                                   | 3-day offline drill passes with zero data loss; canary deploy proven on 1 store before wider rollout                                                                                                                       |
+| Phase                                                      | Scope                                                                                                                                                                                                                                                                                    | Exit Criteria                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Phase 0a — Offline-write spike** (before all other work) | Smallest possible end-to-end slice on the actual Tauri + PowerSync Tauri SDK stack: one till, one offline sale, sync on reconnect. Purpose: surface any blocking alpha-SDK instability before the rest of the MVP is built on top. Full pass criteria in [research.md §12](research.md). | One offline sale completes locally and syncs exactly once on reconnect (SC-012). If BLOCKED: **fall back to the Tauri sidecar plan** documented in [research.md §12](research.md) — the shell, build pipeline, test harness, and OTA mechanism stay identical; only the SDK-hosting substrate changes. Electron migration is explicitly rejected (build/test complexity). This decision MUST be made here, not later. |
+| **Phase 0 — Foundation**                                   | Auth/roles, store & till master data, local DB schema, PowerSync sync rules per store, basic sync-health screen                                                                                                                                                                          | Sync rules verified isolated per store (EC-06)                                                                                                                                                                                                                                                                                                                                                                        |
+| **Phase 1 — MVP core** (1 pilot store)                     | Offline-capable checkout/POS (US1), shift/cash-up, read-only centrally-set price list (US2 basic)                                                                                                                                                                                        | A full offline sale + reconnect sync cycle passes on real hardware                                                                                                                                                                                                                                                                                                                                                    |
+| **Phase 2 — Inventory** (pilot store)                      | Stock counts, adjustments, low-stock alerts, oversell flagging (US3)                                                                                                                                                                                                                     | Overselling scenario (US3 §1) verified end-to-end                                                                                                                                                                                                                                                                                                                                                                     |
+| **Phase 3 — Multi-store**                                  | Inter-store transfers (US4), full price engine (US2 promotions, effective-dated pricing, audit trail), per-till sync rolled to additional stores                                                                                                                                         | Transfer variance and in-transit state machine (EC-04) verified across two real stores                                                                                                                                                                                                                                                                                                                                |
+| **Phase 4 — Reporting**                                    | Sales/inventory reports, till reconciliation, HQ multi-store dashboard (US7)                                                                                                                                                                                                             | Report SLA (NFR-002) met against representative data volume                                                                                                                                                                                                                                                                                                                                                           |
+| **Phase 5 — Hardening & full rollout**                     | DR drills ("offline for 3 days", US6), alerting, canary deploy tooling (US8), staged rollout to remaining stores                                                                                                                                                                         | 3-day offline drill passes with zero data loss; canary deploy proven on 1 store before wider rollout                                                                                                                                                                                                                                                                                                                  |
 
 ---
 
@@ -471,7 +476,7 @@ No open items remain for planning to begin. Any new ambiguity discovered during 
 ## 14. Out of Scope (Explicit)
 
 - SAP B1 integration of any kind.
-- **ZRA Smart Invoice / VSDC fiscalisation** — deliberately deferred to a **companion spec (`002-fiscalisation`, planned)**. This MVP spec is developed and tested without fiscalisation. Per Constitution v1.0.0 Principle V, fiscalisation is a compliance gate for shipping the sales module to a live store: **pilot go-live is blocked** until the companion spec lands. NFR-011 in this document remains as a forward reference to that gate; it is not something this spec builds.
+- **ZRA Smart Invoice / VSDC fiscalisation** — deliberately deferred to a **companion spec (`002-fiscalisation`, planned)**. This MVP spec is developed and tested without fiscalisation. Per Constitution v1.1.0 Principle V, fiscalisation is a compliance gate for shipping the sales module to a live store: **pilot go-live is blocked** until the companion spec lands. NFR-011 in this document is a forward reference to that gate; it is not something this spec builds.
 - Any till-to-till or LAN-local communication or a store-level coordinator/Hub device.
 - Final hosting contract, terminal procurement vendor selection, and per-store ISP contracts (hardware/network _requirements_ are specified in the Constitution §Additional Constraints; procurement execution is not part of this spec).
 - Loyalty program business rules beyond loyalty-tier pricing as an input to the price engine.
@@ -482,9 +487,9 @@ No open items remain for planning to begin. Any new ambiguity discovered during 
 ## 15. Assumptions
 
 - The target **Windows POS terminal hardware** described in the Constitution (§Additional Constraints v1.1.0) will be procured and provisioned per store, enrolled to Microsoft Intune, and locked down via Windows Assigned Access / Shell Launcher. This spec assumes the hardware baseline is met, not something this spec has to prove.
-- The **PowerSync Tauri SDK is currently alpha** (accepted risk, Constitution v1.1.0). Phase 0a (§11) validates the offline-write path against the actual SDK before any other work. If Phase 0a fails, the pre-authorised fallback is Electron + PowerSync's Node.js SDK; the switch decision is made at Phase 0a, not later.
+- The **PowerSync Tauri SDK is currently alpha** (accepted risk, Constitution v1.1.0). Phase 0a (§11) validates the offline-write path against the actual SDK before any other work. If Phase 0a fails, the pre-authorised fallback is a **Tauri sidecar hosting the PowerSync Node.js SDK** — same shell, same build/test/OTA pipeline (see [research.md §12](research.md#12-phase-0a-offline-write-spike-and-fallback-plan)). Electron migration is explicitly rejected. The switch decision is made at Phase 0a, not later.
 - Supabase logical replication will be enabled for the deployment's Postgres instance, since PowerSync requires it.
-- ZRA Smart Invoice / VSDC fiscalization is implementable through the same integration approach already proven on the Harvest LPG ERP; no novel fiscalization work is expected here beyond wiring it in.
+- ZRA Smart Invoice / VSDC fiscalisation is deliberately deferred to companion spec `002-fiscalisation` (planned); the LPG ERP integration approach carries over unchanged. Per Constitution v1.1.0 Principle V, fiscalisation is a compliance gate for shipping the sales module to a live store — pilot go-live is BLOCKED on the companion spec landing. Same statement in §14, NFR-011, and [checklists/requirements.md](checklists/requirements.md).
 - Each store has, or will have, both a primary ISP link and a 4G/LTE failover router; where a store lacks the failover today, that gap is treated as a rollout blocker for that store, not a system defect.
 - Store staff will be trained on: (a) same-till-session voids being offline-capable while cross-till/day refunds are not, (b) overselling being an expected, manager-followed-up scenario rather than a bug, (c) cashier roster changes at HQ take effect at a till only after that till has synced (EC-14).
 - Reporting SLA figures and training-time targets referenced in §10 will be finalized during planning; they are placeholders here so success criteria can be stated up-front and refined without re-specifying the feature.
@@ -502,4 +507,4 @@ No open items remain for planning to begin. Any new ambiguity discovered during 
 - [ ] Rollout plan (§11) confirms pilot-store-first with no phase requiring simultaneous multi-store go-live.
 - [x] Fiscalisation (NFR-011) explicitly deferred to companion spec `002-fiscalisation`; blocks pilot go-live, not MVP build (§14).
 - [ ] No open clarifications remain (§13) before planning/tasks generation proceeds.
-- [ ] Constitution v1.0.0 principles (I–VII) map cleanly to at least one FR/NFR or User Story each.
+- [ ] Constitution v1.1.0 principles (I–VII) map cleanly to at least one FR/NFR or User Story each.

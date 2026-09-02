@@ -1,0 +1,55 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "HGL POS",
+  "version": "0.1.0",
+  "identifier": "com.harvestgroup.hglpos",
+  "build": {
+    "beforeDevCommand": "pnpm --filter @hgl/pos dev",
+    "devUrl": "http://localhost:3001",
+    "beforeBuildCommand": "pnpm --filter @hgl/pos build",
+    "frontendDist": "../out"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "till",
+        "title": "HGL POS",
+        "width": 1366,
+        "height": 768,
+        "resizable": false,
+        "fullscreen": false,
+        "decorations": true,
+        "alwaysOnTop": false,
+        "focus": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:8080 http://localhost:54321 ipc: https://ipc.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis"],
+    "publisher": "Harvest Group",
+    "category": "Business",
+    "shortDescription": "Harvest Group retail POS terminal",
+    "longDescription": "Offline-first retail POS for Harvest Group's 16-store rollout. Runs on Windows POS terminals, syncs to Supabase via PowerSync.",
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    },
+    "resources": [],
+    "externalBin": [],
+    "icon": []
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://updates.harvestgroup.internal/pos/{{target}}/{{current_version}}"
+      ],
+      "dialog": false,
+      "pubkey": ""
+    }
+  }
+}

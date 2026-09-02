@@ -54,7 +54,7 @@ Request:
 {
   "store_id": "<uuid>",
   "label": "Till 3",
-  "device_identity": "<android device hardware id>",
+  "device_identity": "<windows device identity — SMBIOS UUID or Intune-assigned device ID>",
   "operator_user_id": "<uuid>"
 }
 ```

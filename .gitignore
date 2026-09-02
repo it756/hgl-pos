@@ -1,0 +1,64 @@
+# Node
+node_modules/
+.pnp
+.pnp.js
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+.env.local
+.env.*.local
+.env.production
+next-env.d.ts
+
+# Tauri / Rust
+target/
+apps/pos/src-tauri/target/
+apps/pos/src-tauri/gen/
+*.pdb
+
+# Supabase local
+supabase/.temp/
+supabase/.branches/
+
+# Build artefacts
+dist/
+build/
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
+.nyc_output/
+*.test.log
+playwright-report/
+test-results/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+
+# Secrets
+*.pem
+*.key
+*.p12
+*.pfx
+.env
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Spike / drill reports contain PII from live data — never commit
+specs/001-retail-pos-mvp/spike-evidence/
+specs/001-retail-pos-mvp/drill-report.md

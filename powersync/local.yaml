@@ -1,0 +1,30 @@
+# PowerSync — local dev config for the HGL POS backend.
+# The authoritative sync-rules file is contracts/powersync-sync-rules.yaml in
+# the spec; T030 copies it to powersync/sync-rules.yaml before deploy.
+
+replication:
+  connections:
+    - type: postgresql
+      uri: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      # Logical replication must be enabled on the Supabase DB per research.md §1.
+      slot_name: powersync_local
+
+api:
+  tokens:
+    # Local-dev only. Replace via env-var in CI + prod.
+    - dev-only-do-not-ship
+
+client_auth:
+  # PowerSync verifies Supabase-issued JWTs; expects the domain claims injected
+  # by supabase/migrations/0010_auth_token_hook.sql.
+  supabase:
+    url: http://127.0.0.1:54321
+    jwt_secret: ${SUPABASE_JWT_SECRET}
+
+storage:
+  type: postgresql
+  uri: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+port: 8080
+sync_rules:
+  path: ./sync-rules.yaml

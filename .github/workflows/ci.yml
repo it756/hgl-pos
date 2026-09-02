@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "001-retail-pos-mvp"]
+  pull_request:
+    branches: [main, "001-retail-pos-mvp"]
+
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "9.15.0"
+  RUST_TOOLCHAIN: stable
+
+jobs:
+  lint-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: pnpm run typecheck
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run test
+
+  pgtap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+      - run: supabase test db
+      - if: always()
+        run: supabase stop
+
+  powersync-sync-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - name: Validate PowerSync sync-rules
+        run: pnpm exec powersync validate-sync-rules powersync/sync-rules.yaml
+      - name: Run sync-rule isolation tests
+        run: pnpm run test:sync-rules
+
+  tauri-windows-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "apps/pos/src-tauri -> target"
+      - run: pnpm install --frozen-lockfile
+      - name: Build POS Next.js bundle
+        run: pnpm --filter @hgl/pos build
+      - name: Build Tauri Windows installer (unsigned in CI)
+        run: pnpm --filter @hgl/pos tauri:build -- --ci
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ""
