@@ -1,8 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "identifier": "com.harvestgroup.hglpos",
+  "identifier": "default",
+  "description": "Default capability for the main HGL POS window.",
+  "windows": ["till"],
   "permissions": [
     "core:default",
-    "updater:default"
+    "updater:default",
+    "powersync:default"
   ]
 }

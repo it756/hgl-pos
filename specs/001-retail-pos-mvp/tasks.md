@@ -54,7 +54,7 @@ Per [plan.md project structure](plan.md#project-structure): pnpm-workspaces mono
 
 **⚠️ CRITICAL**: No Phase 3+ task may begin until T018 records a decision.
 
-- [ ] T016 Implement the smallest offline-write slice on the real Tauri + PowerSync Tauri SDK: one seeded cashier, one shift open, one sale using cached prices, disconnect from WAN, reconnect, verify sync. Files: `apps/pos/src/app/spike/page.tsx` + `apps/pos/src-tauri/src/spike.rs`
+- [X] T016 Implement the smallest offline-write slice on the real Tauri + PowerSync Tauri SDK: one seeded cashier, one shift open, one sale using cached prices, disconnect from WAN, reconnect, verify sync. Files: `apps/pos/src/app/spike/page.tsx` + `apps/pos/src-tauri/src/spike.rs`
 - [ ] T017 Execute the four pass criteria in [research.md §12](research.md) on target Windows POS hardware: (a) no SDK crash under normal write load, (b) SQLite file survives an app-update install (not just restart), (c) IPC stable under repeat cycles, (d) no data loss under `kill -9` mid-write. Record raw evidence in `specs/001-retail-pos-mvp/spike-evidence/`
 - [ ] T018 **GATE decision**: write `specs/001-retail-pos-mvp/spike-report.md` documenting PASS/FAIL per criterion and one of two outcomes:
   - **PASS** → Phase 3+ proceeds on the primary Tauri SDK path.

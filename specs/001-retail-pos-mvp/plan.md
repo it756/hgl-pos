@@ -67,6 +67,7 @@ apps/
 │   │   ├── app/                      # Next.js App Router: /login, /shift, /sale, /sync-health
 │   │   ├── components/               # Cart, tender, receipt-preview, cash-up sheet, sync badge
 │   │   ├── lib/
+
 │   │   │   ├── db/                   # PowerSync Tauri SDK init, SQLite migrations, Drizzle schemas
 │   │   │   ├── events/               # Event builders + Zod validation
 │   │   │   ├── sync/                 # Sync-engine wiring, health probe, backoff/jitter, queue metrics

@@ -18,6 +18,11 @@ tauri-plugin-updater = "2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
+# ASSUMPTION: crate name/version inferred from the JS wrapper @powersync/tauri-plugin@0.0.6
+# (alpha) referenced in package.json — verify against the actual published crate on
+# first build and correct if `cargo` can't resolve it.
+tauri-plugin-powersync = "0.0.6"
+
 # Argon2id PIN hashing lives in the Rust shell (T041).
 argon2 = "0.5"
 rand_core = { version = "0.6", features = ["std"] }

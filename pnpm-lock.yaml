@@ -4,6 +4,10 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@powersync/common': ^2.2.0
+  '@powersync/shared-internals': ^1.2.0
+
 importers:
 
   .:
@@ -111,12 +115,18 @@ importers:
       '@hgl/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@powersync/common':
+        specifier: ^2.2.0
+        version: 2.2.0
       '@powersync/react':
-        specifier: 2.0.0
-        version: 2.0.0(@powersync/common@2.0.0)(react@19.2.8)
+        specifier: 2.0.1
+        version: 2.0.1(@powersync/common@2.2.0)(react@19.2.8)
       '@powersync/tauri-plugin':
         specifier: 0.0.6
         version: 0.0.6
+      '@powersync/web':
+        specifier: ^2.3.0
+        version: 2.3.0(@powersync/common@2.2.0)(@powersync/shared-internals@1.2.0(@powersync/common@2.2.0))
       '@supabase/supabase-js':
         specifier: ^2.45.4
         version: 2.114.0
@@ -1311,6 +1321,9 @@ packages:
     resolution: {integrity: sha512-LvVYn83nnXPl+Rg98nvcFgjx6nRMTArhSn6RAX/w3ELn54S8A42TYZvsCMdGUqTM8S0wyXbtlQdU6Hi6dykj9g==}
     engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
 
+  '@journeyapps/wa-sqlite@2.0.3':
+    resolution: {integrity: sha512-LEnzLL/+6z9AAOJQ1nZD5/lo5xE6ZWpkH/M6S3RAGiM047jDqKvGjx8SkGkG1bRcFbbGApf3RWlHGfrmButXcg==}
+
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
 
@@ -1422,20 +1435,29 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
-  '@powersync/common@2.0.0':
-    resolution: {integrity: sha512-GuWmk0w0Y6I1HDwX4uGFzzw1e4E4bkvDSSCpVikdTEIk1xcW5NNnqTX8xfDheZdoQZunm/XushrR/LsIp1Yc/g==}
+  '@powersync/common@2.2.0':
+    resolution: {integrity: sha512-TLQE0De9TAniQIyvfkPiim5MHi/nDely7ZT7iSBHY+xtDt5pwelqwmq0IcWSqZnkTagimGXp7p1z5htWwt0Wbw==}
 
-  '@powersync/react@2.0.0':
-    resolution: {integrity: sha512-HCIhyGRWOVjWOEyLfDhFCHhVmchtzNFIP0RKKjCsXiCr9pCfmuE5FHtI5LR5BdqgrVn0n0RcpH8LbGyxP8iVxg==}
+  '@powersync/react@2.0.1':
+    resolution: {integrity: sha512-t2604rFnQlK5LfXUJBD3NCzFozpHSbYwN02CtTiVH8GcFU0SkxM1Mij2103AnqmsAf9o0BOR3vuT07R2UBKJvg==}
     peerDependencies:
-      '@powersync/common': ^2.0.0
+      '@powersync/common': ^2.2.0
       react: '*'
 
-  '@powersync/shared-internals@1.1.0':
-    resolution: {integrity: sha512-wvMzKlyCTEZ87dujK7eID5d5O8EaY/637c4dOj4KmqOA8nosbIqewVxWmGKzySYLh8TnyoIpsz87iniFTA9S0g==}
+  '@powersync/shared-internals@1.2.0':
+    resolution: {integrity: sha512-wkSgKKcIo9It6axdDBfAJNxzQcfc6hVMlcycxoPSAuMIo/GnXuyi2bl3DpMaZWMutrXlkemPKG3y4nuqxLYpVA==}
+    peerDependencies:
+      '@powersync/common': ^2.2.0
 
   '@powersync/tauri-plugin@0.0.6':
     resolution: {integrity: sha512-jFtSJY3vZ0YeYu5s7N2neGNcjphOi/wwRQHp6nFHvl4ZWWlGLc4NtvseCrRh5WafK2S5wqahH25yIpYA9rLHig==}
+
+  '@powersync/web@2.3.0':
+    resolution: {integrity: sha512-6NjVRB+RmxlL+insiWOZrpolrAChsfL1MpULv2Impk242y5ZSAdk+lUPn5XBYltsHorhKov8PplbDbL1sAYmIQ==}
+    hasBin: true
+    peerDependencies:
+      '@powersync/common': ^2.2.0
+      '@powersync/shared-internals': ^1.2.0
 
   '@promptbook/utils@0.69.5':
     resolution: {integrity: sha512-xm5Ti/Hp3o4xHrsK9Yy3MS6KbDxYbq485hDsFvxqaNA7equHLPdo8H8faTitTeb14QCDfLW4iwCxdVYu5sn6YQ==}
@@ -2421,6 +2443,13 @@ packages:
 
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
+
+  comlink@4.4.2:
+    resolution: {integrity: sha512-OxGdvBmJuNKSCMO4NTl1L47VRp6xn2wG4F/2hYzB6tiCb709otOxtEYCSvK80PtjODfXXZu8ds+Nw5kVCjqd2g==}
+
+  commander@12.1.0:
+    resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
+    engines: {node: '>=18'}
 
   commander@14.0.3:
     resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
@@ -5558,6 +5587,8 @@ snapshots:
       '@types/yargs': 17.0.35
       chalk: 4.1.2
 
+  '@journeyapps/wa-sqlite@2.0.3': {}
+
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
@@ -5640,20 +5671,30 @@ snapshots:
     dependencies:
       playwright: 1.62.1
 
-  '@powersync/common@2.0.0': {}
+  '@powersync/common@2.2.0': {}
 
-  '@powersync/react@2.0.0(@powersync/common@2.0.0)(react@19.2.8)':
+  '@powersync/react@2.0.1(@powersync/common@2.2.0)(react@19.2.8)':
     dependencies:
-      '@powersync/common': 2.0.0
+      '@powersync/common': 2.2.0
       react: 19.2.8
 
-  '@powersync/shared-internals@1.1.0': {}
+  '@powersync/shared-internals@1.2.0(@powersync/common@2.2.0)':
+    dependencies:
+      '@powersync/common': 2.2.0
 
   '@powersync/tauri-plugin@0.0.6':
     dependencies:
-      '@powersync/common': 2.0.0
-      '@powersync/shared-internals': 1.1.0
+      '@powersync/common': 2.2.0
+      '@powersync/shared-internals': 1.2.0(@powersync/common@2.2.0)
       '@tauri-apps/api': 2.11.1
+
+  '@powersync/web@2.3.0(@powersync/common@2.2.0)(@powersync/shared-internals@1.2.0(@powersync/common@2.2.0))':
+    dependencies:
+      '@journeyapps/wa-sqlite': 2.0.3
+      '@powersync/common': 2.2.0
+      '@powersync/shared-internals': 1.2.0(@powersync/common@2.2.0)
+      comlink: 4.4.2
+      commander: 12.1.0
 
   '@promptbook/utils@0.69.5':
     dependencies:
@@ -6765,6 +6806,10 @@ snapshots:
       color-name: 1.1.4
 
   color-name@1.1.4: {}
+
+  comlink@4.4.2: {}
+
+  commander@12.1.0: {}
 
   commander@14.0.3: {}
 

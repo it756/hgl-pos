@@ -26,5 +26,11 @@
   "devDependencies": {
     "prettier": "^3.3.3",
     "typescript": "^5.5.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "@powersync/common": "^2.2.0",
+      "@powersync/shared-internals": "^1.2.0"
+    }
   }
 }

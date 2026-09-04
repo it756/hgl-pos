@@ -8,9 +8,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  experimental: {
-    typedRoutes: true,
-  },
+  typedRoutes: true,
   // Custom access to Tauri APIs requires disabling React strict-mode double-invoke
   // for the sync engine, per PowerSync Tauri SDK docs.
   reactStrictMode: false,

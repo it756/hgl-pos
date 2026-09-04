@@ -9,8 +9,9 @@ Bring the whole system up locally for the first time.
 - Docker Desktop (for local Supabase)
 - Supabase CLI (`npm i -g supabase`)
 - PowerSync CLI (`npm i -g @powersync/cli`)
-- **Rust toolchain** (stable, via `rustup`)
+- **Rust toolchain** (stable, via `rustup`) — requires the MSVC C++ Build Tools (`winget install Microsoft.VisualStudio.2022.BuildTools` with the VCTools workload) for the linker
 - **Tauri CLI** (`cargo install tauri-cli` or `pnpm add -g @tauri-apps/cli`)
+- **LLVM/libclang** (`winget install LLVM.LLVM`) — required by `bindgen`, used transitively by the PowerSync Rust crates (`powersync_sqlite_nostd`) to generate SQLite bindings at build time. Set `LIBCLANG_PATH` to the LLVM `bin` directory (e.g. `C:\Program Files\LLVM\bin`) if `cargo build` can't find `libclang.dll`.
 - **WebView2 runtime** (bundled on Windows 11; installer required on Windows 10 IoT if not present)
 - Windows 10/11 dev machine for building Tauri targets — signed Windows installers cannot be cross-compiled from macOS/Linux
 

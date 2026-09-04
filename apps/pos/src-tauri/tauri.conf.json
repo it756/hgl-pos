@@ -20,7 +20,8 @@
         "fullscreen": false,
         "decorations": true,
         "alwaysOnTop": false,
-        "focus": true
+        "focus": true,
+        "url": "/spike/"
       }
     ],
     "security": {
@@ -41,7 +42,7 @@
     },
     "resources": [],
     "externalBin": [],
-    "icon": []
+    "icon": ["icons/icon.ico", "icons/icon.png"]
   },
   "plugins": {
     "updater": {
