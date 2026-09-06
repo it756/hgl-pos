@@ -40,14 +40,15 @@
         "type": "downloadBootstrapper"
       }
     },
-    "resources": [],
+    "createUpdaterArtifacts": true,
+    "resources": ["resources/cohort.config.json"],
     "externalBin": [],
     "icon": ["icons/icon.ico", "icons/icon.png"]
   },
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://updates.harvestgroup.internal/pos/{{target}}/{{current_version}}"
+        "https://updates.harvestgroup.internal/pos/stable/{{target}}/{{current_version}}"
       ],
       "dialog": false,
       "pubkey": ""

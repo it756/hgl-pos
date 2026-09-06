@@ -213,7 +213,7 @@ export const SyncHealthSnapshotSchema = z.object({
 
 // ---------- Discriminated union of every till-writable event ----------
 
-export const AnyTillEventSchema = z.discriminatedUnion("kind", [
+export const AnyTillEventSchema = z.union([
   SaleEventSchema,
   ShiftEventSchema,
   StockEventSchema,
@@ -221,6 +221,7 @@ export const AnyTillEventSchema = z.discriminatedUnion("kind", [
   AdjustmentEventSchema,
 ]);
 
+export type Tender = z.infer<typeof TenderSchema>;
 export type SaleEvent = z.infer<typeof SaleEventSchema>;
 export type ShiftEvent = z.infer<typeof ShiftEventSchema>;
 export type StockEvent = z.infer<typeof StockEventSchema>;

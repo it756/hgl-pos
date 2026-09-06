@@ -1,7 +1,7 @@
 # PowerSync sync-rules — Retail POS 001-retail-pos-mvp
 #
 # Bucket definitions and per-role subscription policy.
-# JWT claims used as parameters: role, store_id, till_id, device_id.
+# JWT POS domain claims used as parameters: pos_role, store_id, till_id, device_id.
 # See ../research.md §3 for the design rationale.
 #
 # Every bucket is either "parameter-scoped" (filters by a JWT claim -> one
@@ -14,7 +14,7 @@ bucket_definitions:
     # Store-scoped SKU catalog + promotions
     parameters: |
       SELECT request.jwt() ->> 'store_id' AS store_id
-      WHERE (request.jwt() ->> 'role') IN ('cashier', 'store_manager')
+      WHERE (request.jwt() ->> 'pos_role') IN ('cashier', 'store_manager')
     data:
       - SELECT s.*
         FROM skus s
@@ -32,29 +32,26 @@ bucket_definitions:
       - SELECT * FROM promotions
         WHERE (store_id = bucket.store_id OR store_id IS NULL)
         AND is_active = true
-        AND (effective_to IS NULL OR effective_to > now() - interval '1 day')
 
   store_prices:
     # Store overrides + global fallbacks; effective now or in the future
     parameters: |
       SELECT request.jwt() ->> 'store_id' AS store_id
-      WHERE (request.jwt() ->> 'role') IN ('cashier', 'store_manager')
+      WHERE (request.jwt() ->> 'pos_role') IN ('cashier', 'store_manager')
     data:
       - SELECT * FROM price_versions
-        WHERE (store_id = bucket.store_id OR store_id IS NULL)
-        AND (effective_to IS NULL OR effective_to > now() - interval '90 days')
+        WHERE store_id = bucket.store_id OR store_id IS NULL
 
   store_stock:
     # Read-only stock position + recent events for count-correction basis (EC-05)
     parameters: |
       SELECT request.jwt() ->> 'store_id' AS store_id
-      WHERE (request.jwt() ->> 'role') IN ('cashier', 'store_manager')
+      WHERE (request.jwt() ->> 'pos_role') IN ('cashier', 'store_manager')
     data:
       - SELECT * FROM current_stock_by_store_sku
         WHERE store_id = bucket.store_id
       - SELECT * FROM stock_events
         WHERE store_id = bucket.store_id
-        AND server_ts > now() - interval '30 days'
 
   store_users:
     # Cashier roster for offline login (US9) — includes pin_hash.
@@ -63,7 +60,7 @@ bucket_definitions:
     # (research.md §3.4 rationale; guards FR-042 / EC-14).
     parameters: |
       SELECT request.jwt() ->> 'store_id' AS store_id
-      WHERE (request.jwt() ->> 'role') IN ('cashier', 'store_manager', 'device')
+      WHERE (request.jwt() ->> 'pos_role') IN ('cashier', 'store_manager', 'device')
     data:
       - SELECT user_id, role, store_id, full_name, pin_hash, pin_updated_at,
         is_active, created_at, updated_at
@@ -78,7 +75,7 @@ bucket_definitions:
     # A till only receives back its OWN sales and shifts, never other tills'
     parameters: |
       SELECT request.jwt() ->> 'till_id' AS till_id
-      WHERE (request.jwt() ->> 'role') = 'cashier'
+      WHERE (request.jwt() ->> 'pos_role') = 'cashier'
         AND (request.jwt() ->> 'till_id') IS NOT NULL
     data:
       - SELECT * FROM sale_events
@@ -95,7 +92,7 @@ bucket_definitions:
   store_operations:
     parameters: |
       SELECT request.jwt() ->> 'store_id' AS store_id
-      WHERE (request.jwt() ->> 'role') = 'store_manager'
+      WHERE (request.jwt() ->> 'pos_role') = 'store_manager'
     data:
       - SELECT * FROM transfers
         WHERE source_store_id = bucket.store_id
@@ -113,21 +110,19 @@ bucket_definitions:
   sync_health_store:
     parameters: |
       SELECT request.jwt() ->> 'store_id' AS store_id
-      WHERE (request.jwt() ->> 'role') = 'store_manager'
+      WHERE (request.jwt() ->> 'pos_role') = 'store_manager'
     data:
       - SELECT * FROM sync_health_snapshots
         WHERE store_id = bucket.store_id
-        AND server_ts > now() - interval '7 days'
       - SELECT * FROM sync_health_alerts
         WHERE store_id = bucket.store_id
-        AND (closed_at IS NULL OR closed_at > now() - interval '30 days')
       - SELECT * FROM tills
         WHERE store_id = bucket.store_id
 
   audit_log_store:
     parameters: |
       SELECT request.jwt() ->> 'store_id' AS store_id
-      WHERE (request.jwt() ->> 'role') = 'store_manager'
+      WHERE (request.jwt() ->> 'pos_role') = 'store_manager'
     data:
       - SELECT * FROM audit_log
         WHERE (new_value ->> 'store_id')::uuid = bucket.store_id
@@ -138,7 +133,7 @@ bucket_definitions:
   fleet_all:
     parameters: |
       SELECT 1 AS ok
-      WHERE (request.jwt() ->> 'role') = 'hq_admin'
+      WHERE (request.jwt() ->> 'pos_role') = 'hq_admin'
     data:
       - SELECT * FROM stores
       - SELECT * FROM tills
@@ -154,32 +149,24 @@ bucket_definitions:
       - SELECT * FROM shifts
       - SELECT * FROM transfers
       - SELECT * FROM stock_events
-        WHERE server_ts > now() - interval '90 days'
       - SELECT * FROM sale_events
-        WHERE server_ts > now() - interval '90 days'
       - SELECT * FROM shift_events
-        WHERE server_ts > now() - interval '90 days'
       - SELECT * FROM transfer_events
-        WHERE server_ts > now() - interval '90 days'
       - SELECT * FROM adjustment_events
-        WHERE server_ts > now() - interval '90 days'
       - SELECT * FROM price_change_events
-        WHERE server_ts > now() - interval '365 days'
 
   sync_health_all:
     parameters: |
       SELECT 1 AS ok
-      WHERE (request.jwt() ->> 'role') = 'hq_admin'
+      WHERE (request.jwt() ->> 'pos_role') = 'hq_admin'
     data:
       - SELECT * FROM sync_health_snapshots
-        WHERE server_ts > now() - interval '30 days'
       - SELECT * FROM sync_health_alerts
-        WHERE (closed_at IS NULL OR closed_at > now() - interval '90 days')
 
   audit_log_all:
     parameters: |
       SELECT 1 AS ok
-      WHERE (request.jwt() ->> 'role') = 'hq_admin'
+      WHERE (request.jwt() ->> 'pos_role') = 'hq_admin'
     data:
       - SELECT * FROM audit_log
 
@@ -188,7 +175,7 @@ bucket_definitions:
   device_provisioning:
     parameters: |
       SELECT request.jwt() ->> 'till_id' AS till_id
-      WHERE (request.jwt() ->> 'role') = 'device'
+      WHERE (request.jwt() ->> 'pos_role') = 'device'
         AND (request.jwt() ->> 'till_id') IS NOT NULL
     data:
       - SELECT till_id, store_id, label, provisioned_at
@@ -204,3 +191,4 @@ bucket_definitions:
 #     and device_provisioning[T] — but NOT catalog, prices, stock, sales,
 #     shifts, transfers, adjustments, audit, or sync_health
 # ---------------------------------------------------------------
+# End of sync rules.

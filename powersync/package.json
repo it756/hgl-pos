@@ -1,0 +1,20 @@
+{
+  "name": "powersync-tests",
+  "private": true,
+  "version": "0.0.0",
+  "description": "PowerSync Sync Streams validation and isolation tests for HGL POS",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint tests --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@hgl/config": "workspace:*",
+    "@types/node": "^20.16.11",
+    "eslint": "^9.13.0",
+    "typescript": "^5.5.4",
+    "typescript-eslint": "^8.11.0",
+    "vitest": "^2.1.3"
+  }
+}

@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=https://unpkg.com/@powersync/service-sync-rules@latest/schema/sync_rules.json
+
+# PowerSync Sync Streams — Retail POS 001-retail-pos-mvp.
+# Scope claims are emitted by public.access_token_hook and intentionally
+# flattened so PowerSync can partition each stream on row-column equality.
+
+config:
+  edition: 3
+
+streams:
+  store_catalog:
+    auto_subscribe: true
+    queries:
+      - SELECT skus.* FROM skus JOIN store_sku_availability ON store_sku_availability.sku_id = skus.sku_id WHERE store_sku_availability.store_id = auth.parameter('store_catalog_store_id') AND store_sku_availability.is_stocked = true AND skus.is_active = true
+      - SELECT sku_barcodes.* FROM sku_barcodes JOIN store_sku_availability ON store_sku_availability.sku_id = sku_barcodes.sku_id WHERE store_sku_availability.store_id = auth.parameter('store_catalog_store_id') AND store_sku_availability.is_stocked = true
+      - SELECT sku_categories.* FROM sku_categories WHERE sku_categories.category_id IN (SELECT skus.category_id FROM skus JOIN store_sku_availability ON store_sku_availability.sku_id = skus.sku_id WHERE store_sku_availability.store_id = auth.parameter('store_catalog_store_id') AND skus.category_id IS NOT NULL)
+      - SELECT promotions.* FROM promotions WHERE promotions.store_id = auth.parameter('store_catalog_store_id') AND promotions.is_active = true
+
+  store_prices:
+    auto_subscribe: true
+    queries:
+      - SELECT price_versions.* FROM price_versions WHERE price_versions.store_id = auth.parameter('store_prices_store_id')
+
+  store_stock:
+    auto_subscribe: true
+    queries:
+      - SELECT current_stock_by_store_sku.* FROM current_stock_by_store_sku WHERE current_stock_by_store_sku.store_id = auth.parameter('store_stock_store_id')
+      - SELECT stock_events.* FROM stock_events WHERE stock_events.store_id = auth.parameter('store_stock_store_id')
+
+  store_users:
+    auto_subscribe: true
+    query: SELECT users.user_id, users.role, users.store_id, users.full_name, users.pin_hash, users.pin_updated_at, users.is_active, users.created_at, users.updated_at FROM users WHERE users.store_id = auth.parameter('store_users_store_id') AND users.role = 'cashier' AND users.is_active = true
+
+  till_own_activity:
+    auto_subscribe: true
+    queries:
+      - SELECT sale_events.* FROM sale_events WHERE sale_events.till_id = auth.parameter('till_activity_till_id')
+      - SELECT shift_events.* FROM shift_events WHERE shift_events.till_id = auth.parameter('till_activity_till_id')
+      - SELECT sales.* FROM sales WHERE sales.till_id = auth.parameter('till_activity_till_id')
+      - SELECT shifts.* FROM shifts WHERE shifts.till_id = auth.parameter('till_activity_till_id')
+
+  store_operations:
+    auto_subscribe: true
+    queries:
+      - SELECT transfers.* FROM transfers WHERE transfers.source_store_id = auth.parameter('store_operations_store_id')
+      - SELECT transfers.* FROM transfers WHERE transfers.destination_store_id = auth.parameter('store_operations_store_id')
+      - SELECT transfer_events.* FROM transfer_events WHERE transfer_events.source_store_id = auth.parameter('store_operations_store_id')
+      - SELECT transfer_events.* FROM transfer_events WHERE transfer_events.destination_store_id = auth.parameter('store_operations_store_id')
+      - SELECT adjustment_events.* FROM adjustment_events WHERE adjustment_events.store_id = auth.parameter('store_operations_store_id')
+      - SELECT sales.* FROM sales WHERE sales.store_id = auth.parameter('store_operations_store_id')
+      - SELECT shifts.* FROM shifts WHERE shifts.store_id = auth.parameter('store_operations_store_id')
+
+  sync_health_store:
+    auto_subscribe: true
+    queries:
+      - SELECT sync_health_snapshots.* FROM sync_health_snapshots WHERE sync_health_snapshots.store_id = auth.parameter('sync_health_store_id')
+      - SELECT sync_health_alerts.* FROM sync_health_alerts WHERE sync_health_alerts.store_id = auth.parameter('sync_health_store_id')
+      - SELECT tills.* FROM tills WHERE tills.store_id = auth.parameter('sync_health_store_id')
+
+  device_provisioning:
+    auto_subscribe: true
+    query: SELECT tills.till_id, tills.store_id, tills.label, tills.provisioned_at FROM tills WHERE tills.till_id = auth.parameter('device_provisioning_till_id')

@@ -228,6 +228,7 @@ export const AnyTillEventSchema = z.discriminatedUnion("kind", [
   AdjustmentEventSchema,
 ]);
 
+export type Tender = z.infer<typeof TenderSchema>;
 export type SaleEvent = z.infer<typeof SaleEventSchema>;
 export type ShiftEvent = z.infer<typeof ShiftEventSchema>;
 export type StockEvent = z.infer<typeof StockEventSchema>;

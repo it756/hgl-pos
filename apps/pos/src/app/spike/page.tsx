@@ -66,7 +66,7 @@ async function getDb(onLog: (line: string) => void): Promise<PowerSyncTauriDatab
       onLog("DB init: constructing PowerSyncTauriDatabase...");
       const instance = new PowerSyncTauriDatabase({
         schema: spikeSchema,
-        database: { dbFilename: "powersync.db", dbLocationAsync: async () => dbDir },
+        database: { dbFilename: "powersync.db", dbLocationAsync: () => Promise.resolve(dbDir) },
       });
       onLog("DB init: calling .init() ...");
       await instance.init();

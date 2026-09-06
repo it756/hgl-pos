@@ -1,8 +1,10 @@
 export default function HomePage() {
   return (
-    <main style={{ padding: "2rem", fontFamily: "system-ui" }}>
-      <h1>HGL POS</h1>
-      <p>Till app placeholder — see Phase 1 T049 for the real shell.</p>
+    <main className="p-md">
+      <h1 className="text-headline-lg font-headline-lg font-bold text-on-surface">HGL POS</h1>
+      <p className="mt-2 text-body-md font-body-md text-on-surface-variant">
+        Till app shell — cashier login, shift, and sale pages land in Phase 4+.
+      </p>
     </main>
   );
 }

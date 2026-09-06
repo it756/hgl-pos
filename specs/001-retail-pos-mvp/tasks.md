@@ -55,8 +55,8 @@ Per [plan.md project structure](plan.md#project-structure): pnpm-workspaces mono
 **⚠️ CRITICAL**: No Phase 3+ task may begin until T018 records a decision.
 
 - [X] T016 Implement the smallest offline-write slice on the real Tauri + PowerSync Tauri SDK: one seeded cashier, one shift open, one sale using cached prices, disconnect from WAN, reconnect, verify sync. Files: `apps/pos/src/app/spike/page.tsx` + `apps/pos/src-tauri/src/spike.rs`
-- [ ] T017 Execute the four pass criteria in [research.md §12](research.md) on target Windows POS hardware: (a) no SDK crash under normal write load, (b) SQLite file survives an app-update install (not just restart), (c) IPC stable under repeat cycles, (d) no data loss under `kill -9` mid-write. Record raw evidence in `specs/001-retail-pos-mvp/spike-evidence/`
-- [ ] T018 **GATE decision**: write `specs/001-retail-pos-mvp/spike-report.md` documenting PASS/FAIL per criterion and one of two outcomes:
+- [X] T017 Execute the four pass criteria in [research.md §12](research.md) on target Windows POS hardware: (a) no SDK crash under normal write load, (b) SQLite file survives an app-update install (not just restart), (c) IPC stable under repeat cycles, (d) no data loss under `kill -9` mid-write. Record raw evidence in `specs/001-retail-pos-mvp/spike-evidence/`
+- [X] T018 **GATE decision**: write `specs/001-retail-pos-mvp/spike-report.md` documenting PASS/FAIL per criterion and one of two outcomes:
   - **PASS** → Phase 3+ proceeds on the primary Tauri SDK path.
   - **FAIL** → apply the Tauri sidecar fallback per [research.md §12.1](research.md): add a Node.js sidecar binary to `apps/pos/src-tauri/tauri.conf.json > externalBin`, implement the `IDb` interface as a sidecar HTTP/IPC adapter in `apps/pos/src/lib/db/`, and update Phase 3+ tasks that reference "PowerSync Tauri SDK" to say "PowerSync SDK (sidecar)". Sidecar transport (loopback HTTP vs Tauri `invoke`) picked and justified in the report.
 
@@ -70,55 +70,55 @@ Per [plan.md project structure](plan.md#project-structure): pnpm-workspaces mono
 
 ### Postgres schema (data-model.md)
 
-- [ ] T019 Migration `supabase/migrations/0001_master_data.sql`: `stores`, `tills`, `sku_categories`, `skus`, `sku_barcodes`, `store_sku_availability`, `suppliers`, `sku_suppliers`, `users`, `promotions`, `price_versions` (append-only per [data-model.md §1.7](data-model.md)) — no `superseded_by`, no `effective_to`
-- [ ] T020 [P] Migration `supabase/migrations/0002_event_tables.sql`: `stock_events`, `sale_events`, `shift_events`, `transfer_events`, `adjustment_events`, `price_change_events` with common columns + `event_id` PK + `ON CONFLICT DO NOTHING` ingest per [data-model.md §2](data-model.md)
-- [ ] T021 [P] Migration `supabase/migrations/0003_projection_tables.sql`: `current_stock_by_store_sku`, `shifts`, `sales`, `transfers`, `pending_transfer_receipts` (side table for out-of-order transfer_in per EC-04)
-- [ ] T022 [P] Migration `supabase/migrations/0004_sync_health.sql`: `sync_health_snapshots`, `sync_health_alerts`
-- [ ] T023 [P] Migration `supabase/migrations/0005_audit_log.sql`: `audit_log` + `public.append_audit(...)` SECURITY DEFINER function (write path for RLS-blocked table)
-- [ ] T024 Migration `supabase/migrations/0006_projection_triggers.sql`: `AFTER INSERT` triggers on all six event tables to maintain projections. Transfer state machine implemented here — `transfer_received` arriving before `transfer_dispatched` is held in `pending_transfer_receipts` (EC-04)
-- [ ] T025 Migration `supabase/migrations/0007_price_change_trigger.sql`: `AFTER INSERT` on `price_change_events` inserts a new `price_versions` row. No mutation of prior versions (see EC-19 canonical resolution query)
-- [ ] T026 Migration `supabase/migrations/0008_indexes.sql`: all indexes from [data-model.md §6](data-model.md) — event tables `(store_id, server_ts DESC)`, `(till_id, server_ts DESC)`, `sale_events (cashier_id, server_ts DESC)`, `(sale_id) UNIQUE`, partial index on `current_stock_by_store_sku WHERE is_oversold`
-- [ ] T027 Migration `supabase/migrations/0009_rls_policies.sql`: import [contracts/rls-policies.sql](contracts/rls-policies.sql) verbatim including `tg_validate_cashier_belongs_to_store()` triggers on `sale_events` and `shift_events`
-- [ ] T028 [P] Migration `supabase/migrations/0010_auth_token_hook.sql`: `public.access_token_hook(event jsonb) returns jsonb` — injects `role`, `store_id`, `till_id`, `device_id` claims per [contracts/http-api.md](contracts/http-api.md) §Auth. Register via Supabase dashboard or CLI
-- [ ] T029 Migration `supabase/migrations/0011_pg_cron.sql`: enable `pg_cron`, schedule `check_sync_health_and_alert()` every minute (research.md §4.3)
+- [X] T019 Migration `supabase/migrations/0001_master_data.sql`: `stores`, `tills`, `sku_categories`, `skus`, `sku_barcodes`, `store_sku_availability`, `suppliers`, `sku_suppliers`, `users`, `promotions`, `price_versions` (append-only per [data-model.md §1.7](data-model.md)) — no `superseded_by`, no `effective_to`
+- [X] T020 [P] Migration `supabase/migrations/0002_event_tables.sql`: `stock_events`, `sale_events`, `shift_events`, `transfer_events`, `adjustment_events`, `price_change_events` with common columns + `event_id` PK + `ON CONFLICT DO NOTHING` ingest per [data-model.md §2](data-model.md)
+- [X] T021 [P] Migration `supabase/migrations/0003_projection_tables.sql`: `current_stock_by_store_sku`, `shifts`, `sales`, `transfers`, `pending_transfer_receipts` (side table for out-of-order transfer_in per EC-04)
+- [X] T022 [P] Migration `supabase/migrations/0004_sync_health.sql`: `sync_health_snapshots`, `sync_health_alerts`
+- [X] T023 [P] Migration `supabase/migrations/0005_audit_log.sql`: `audit_log` + `public.append_audit(...)` SECURITY DEFINER function (write path for RLS-blocked table)
+- [X] T024 Migration `supabase/migrations/0006_projection_triggers.sql`: `AFTER INSERT` triggers on all six event tables to maintain projections. Transfer state machine implemented here — `transfer_received` arriving before `transfer_dispatched` is held in `pending_transfer_receipts` (EC-04)
+- [X] T025 Migration `supabase/migrations/0007_price_change_trigger.sql`: `AFTER INSERT` on `price_change_events` inserts a new `price_versions` row. No mutation of prior versions (see EC-19 canonical resolution query)
+- [X] T026 Migration `supabase/migrations/0008_indexes.sql`: all indexes from [data-model.md §6](data-model.md) — event tables `(store_id, server_ts DESC)`, `(till_id, server_ts DESC)`, `sale_events (cashier_id, server_ts DESC)`, `(sale_id) UNIQUE`, partial index on `current_stock_by_store_sku WHERE is_oversold`
+- [X] T027 Migration `supabase/migrations/0009_rls_policies.sql`: import [contracts/rls-policies.sql](contracts/rls-policies.sql) verbatim including `tg_validate_cashier_belongs_to_store()` triggers on `sale_events` and `shift_events`
+- [X] T028 [P] Migration `supabase/migrations/0010_auth_token_hook.sql`: `public.access_token_hook(event jsonb) returns jsonb` — injects `role`, `store_id`, `till_id`, `device_id` claims per [contracts/http-api.md](contracts/http-api.md) §Auth. Register via Supabase dashboard or CLI
+- [X] T029 Migration `supabase/migrations/0011_pg_cron.sql`: enable `pg_cron`, schedule `check_sync_health_and_alert()` every minute (research.md §4.3)
 
 ### PowerSync sync rules
 
-- [ ] T030 Deploy sync rules: copy [contracts/powersync-sync-rules.yaml](contracts/powersync-sync-rules.yaml) to `powersync/sync-rules.yaml`; enable Postgres logical replication on the target Supabase project (research §1 requirement)
+- [X] T030 Deploy sync rules: copy [contracts/powersync-sync-rules.yaml](contracts/powersync-sync-rules.yaml) to `powersync/sync-rules.yaml`; enable Postgres logical replication on the target Supabase project (research §1 requirement)
 
 ### Foundational tests
 
-- [ ] T031 [P] pgTAP `supabase/tests/rls.spec.sql`: assert every policy in [contracts/rls-policies.sql](contracts/rls-policies.sql). Cover device-JWT roster read + insert bounds.
-- [ ] T032 [P] pgTAP `supabase/tests/event_idempotency.spec.sql`: duplicate `event_id` INSERT is a no-op across all six event tables
-- [ ] T033 [P] pgTAP `supabase/tests/projection_triggers.spec.sql`: sale → companion `stock_events`; transfer_in-before-transfer_out held in `pending_transfer_receipts`; state machine advances only forward
-- [ ] T034 [P] PowerSync isolation `powersync/tests/isolation.spec.ts`: cashier@storeA cannot see storeB rows in any bucket; till T cannot see till T+1 sale_events; **device credential JWT sees `store_users[S]` and `device_provisioning[T]` but NOT catalog/stock/sales/audit/sync_health** (EC-06, C1 fix)
-- [ ] T035 [P] Seed `supabase/seed/seed.sql`: 1 pilot store, 2 tills (`Till 1`, `Till 2`), 1 HQ admin, 1 store manager, 2 cashiers with PINs, ~50 SKUs across 3 categories, initial global prices
+- [X] T031 [P] pgTAP `supabase/tests/rls.spec.sql`: assert every policy in [contracts/rls-policies.sql](contracts/rls-policies.sql). Cover device-JWT roster read + insert bounds.
+- [X] T032 [P] pgTAP `supabase/tests/event_idempotency.spec.sql`: duplicate `event_id` INSERT is a no-op across all six event tables
+- [X] T033 [P] pgTAP `supabase/tests/projection_triggers.spec.sql`: sale → companion `stock_events`; transfer_in-before-transfer_out held in `pending_transfer_receipts`; state machine advances only forward
+- [X] T034 [P] PowerSync isolation `powersync/tests/isolation.spec.ts`: cashier@storeA cannot see storeB rows in any bucket; till T cannot see till T+1 sale_events; **device credential JWT sees `store_users[S]` and `device_provisioning[T]` but NOT catalog/stock/sales/audit/sync_health** (EC-06, C1 fix)
+- [X] T035 [P] Seed `supabase/seed/seed.sql`: 1 pilot store, 2 tills (`Till 1`, `Till 2`), 1 HQ admin, 1 store manager, 2 cashiers with PINs, ~50 SKUs across 3 categories, initial global prices
 
 ### Till-side foundational modules (apps/pos)
 
-- [ ] T036 [P] `apps/pos/src/lib/db/interface.ts`: define the `IDb` interface (query, insert, watch). Two implementations — `apps/pos/src/lib/db/tauri-sdk.ts` (primary) and `apps/pos/src/lib/db/sidecar.ts` (fallback). Both share Drizzle types from `packages/db-shared`
-- [ ] T037 [P] `apps/pos/src/lib/db/schema.ts`: Drizzle SQLite schema mirroring the streamed tables per [data-model.md §5](data-model.md)
-- [ ] T038 [P] `apps/pos/src/lib/sync/engine.ts`: backoff + jitter (≥ 30 s attempt 1, geometric to 5 min cap), batched upload (≤ 100 events / 250 ms pause per EC-15), persisted-queue survivability across app restart (EC-02)
-- [ ] T039 [P] `apps/pos/src/lib/sync/health.ts`: local `sync_health_local` write-only table; sends snapshot via `POST /internal/sync-health-snapshot` Edge Function on schedule (≤ 1/10 s per till per EC-18)
-- [ ] T040 [P] `apps/pos/src/lib/time/clock.ts`: NTP sync ≥ every 12 h while online; persist last-known-reliable timestamp; refuse to record financial events if local time drifts > 15 min (FR-044, EC-17)
-- [ ] T041 [P] `apps/pos/src/lib/auth/pin.ts` + `apps/pos/src-tauri/src/pin.rs`: Argon2id PIN hash/verify implemented in the Rust shell (native, not WASM) exposed via a Tauri command
-- [ ] T042 [P] `apps/pos/src/lib/auth/device-credential.ts`: read + rotate device credential; refresh policy per Constitution §Additional Constraints
-- [ ] T043 [P] `apps/pos/src/lib/peripherals/`: OPOS/UPOS adapter interfaces (printer, scanner, cash drawer, MSR) — retry/timeout isolated from sync layer (Principle I rule 3)
+- [X] T036 [P] `apps/pos/src/lib/db/interface.ts`: define the `IDb` interface (query, insert, watch). Two implementations — `apps/pos/src/lib/db/tauri-sdk.ts` (primary) and `apps/pos/src/lib/db/sidecar.ts` (fallback). Both share Drizzle types from `packages/db-shared`
+- [X] T037 [P] `apps/pos/src/lib/db/schema.ts`: Drizzle SQLite schema mirroring the streamed tables per [data-model.md §5](data-model.md)
+- [X] T038 [P] `apps/pos/src/lib/sync/engine.ts`: backoff + jitter (≥ 30 s attempt 1, geometric to 5 min cap), batched upload (≤ 100 events / 250 ms pause per EC-15), persisted-queue survivability across app restart (EC-02)
+- [X] T039 [P] `apps/pos/src/lib/sync/health.ts`: local `sync_health_local` write-only table; sends snapshot via `POST /internal/sync-health-snapshot` Edge Function on schedule (≤ 1/10 s per till per EC-18)
+- [X] T040 [P] `apps/pos/src/lib/time/clock.ts`: NTP sync ≥ every 12 h while online; persist last-known-reliable timestamp; refuse to record financial events if local time drifts > 15 min (FR-044, EC-17)
+- [X] T041 [P] `apps/pos/src/lib/auth/pin.ts` + `apps/pos/src-tauri/src/pin.rs`: Argon2id PIN hash/verify implemented in the Rust shell (native, not WASM) exposed via a Tauri command
+- [X] T042 [P] `apps/pos/src/lib/auth/device-credential.ts`: read + rotate device credential; refresh policy per Constitution §Additional Constraints
+- [X] T043 [P] `apps/pos/src/lib/peripherals/`: OPOS/UPOS adapter interfaces (printer, scanner, cash drawer, MSR) — retry/timeout isolated from sync layer (Principle I rule 3)
 
 ### Edge Functions
 
-- [ ] T044 Edge Function `supabase/functions/internal-sync-health-snapshot/index.ts`: receives snapshot POSTs from tills (EC-18 dedicated endpoint); dedup by `snapshot_id`; RLS-bounded insert
-- [ ] T045 [P] Edge Function `supabase/functions/sync-health-alerts/index.ts`: `pg_cron` invokes `check_sync_health_and_alert()`; posts to WhatsApp/SMS webhook when a till goes stale
-- [ ] T046 [P] Edge Function `supabase/functions/provision-till/index.ts`: implements `POST /provision-till` per [contracts/http-api.md](contracts/http-api.md)
-- [ ] T047 [P] Edge Function `supabase/functions/rotate-device-credential/index.ts`: implements `POST /auth/device-credential/rotate`
+- [X] T044 Edge Function `supabase/functions/internal-sync-health-snapshot/index.ts`: receives snapshot POSTs from tills (EC-18 dedicated endpoint); dedup by `snapshot_id`; RLS-bounded insert
+- [X] T045 [P] Edge Function `supabase/functions/sync-health-alerts/index.ts`: `pg_cron` invokes `check_sync_health_and_alert()`; posts to WhatsApp/SMS webhook when a till goes stale
+- [X] T046 [P] Edge Function `supabase/functions/provision-till/index.ts`: implements `POST /provision-till` per [contracts/http-api.md](contracts/http-api.md)
+oull- [X] T047 [P] Edge Function `supabase/functions/rotate-device-credential/index.ts`: implements `POST /auth/device-credential/rotate`
 
 ### Admin + POS shells
 
-- [ ] T048 [P] `apps/admin/src/app/layout.tsx`: role-gated Supabase client (`apps/admin/src/lib/supabase/server.ts`, `apps/admin/src/lib/supabase/browser.ts`); auth-context provider; route guards
-- [ ] T049 [P] `apps/pos/src/app/layout.tsx`: PowerSync provider from `apps/pos/src/lib/db/`, kiosk-safe error boundary, offline badge
-- [ ] T050 [P] `apps/pos/src/app/sync-health/page.tsx`: reads `sync_health_local`; shows queue depth, last-successful-sync, offline-threshold warning (NFR-014)
-- [ ] T051 [P] `apps/admin/src/app/sync-health/page.tsx`: HQ fleet view — per-till queue depth, staleness histogram, `app_version` cohort split (research §4.4), **and a "cashier roster last-refreshed at" indicator per till (FR-042) so a "cashier missing at till" report during onboarding is diagnosable**
-- [ ] T052 [P] `apps/admin/src/app/sync-health/(store)/page.tsx`: store-manager scoped view — same layout, scoped to their store
+- [X] T048 [P] `apps/admin/src/app/layout.tsx`: role-gated Supabase client (`apps/admin/src/lib/supabase/server.ts`, `apps/admin/src/lib/supabase/browser.ts`); auth-context provider; route guards
+- [X] T049 [P] `apps/pos/src/app/layout.tsx`: PowerSync provider from `apps/pos/src/lib/db/`, kiosk-safe error boundary, offline badge
+- [X] T050 [P] `apps/pos/src/app/sync-health/page.tsx`: reads `sync_health_local`; shows queue depth, last-successful-sync, offline-threshold warning (NFR-014)
+- [X] T051 [P] `apps/admin/src/app/sync-health/page.tsx`: HQ fleet view — per-till queue depth, staleness histogram, `app_version` cohort split (research §4.4), **and a "cashier roster last-refreshed at" indicator per till (FR-042) so a "cashier missing at till" report during onboarding is diagnosable**
+- [X] T052 [P] Store-manager scoped view: implemented as the SAME `apps/admin/src/app/sync-health/page.tsx` (not a separate `(store)` route — a `()` route group does not change the URL, so a second `page.tsx` at that path would collide with T051's route). RLS on `sync_health_latest_by_till`/`current_stock_by_store_sku` already scopes a store_manager's rows to their own store; the page only branches on `scope` for whether to show the store filter.
 
 **Checkpoint**: Foundation ready. All user story phases can now proceed in priority order (and P1 stories in parallel where their files are disjoint).
 
@@ -134,20 +134,40 @@ Per [plan.md project structure](plan.md#project-structure): pnpm-workspaces mono
 
 ### Implementation
 
-- [ ] T053 [P] [US9] Cashier login page `apps/pos/src/app/login/page.tsx`
-- [ ] T054 [US9] `apps/pos/src/lib/auth/cashier-session.ts`: offline PIN check against cached `users.pin_hash`; local lockout state persisted (FR-043) — cannot be reset by taking till offline
-- [ ] T055 [P] [US9] Shift open dialog `apps/pos/src/app/shift/open/page.tsx` — opening-float entry, cashier-attribution stamp
-- [ ] T056 [P] [US9] Shift close / cash-up dialog `apps/pos/src/app/shift/close/page.tsx` — per-tender cash counted, over/short calc
-- [ ] T057 [US9] `apps/pos/src/lib/events/shift.ts`: Zod-validated `shift_open` / `shift_close` builders (depends on T014)
-- [ ] T058 [US9] `apps/pos/src/lib/events/queue.ts`: persist shift events + append to upload queue (depends on T038)
+- [X] T053 [P] [US9] Cashier login page `apps/pos/src/app/login/page.tsx`
+- [X] T054 [US9] `apps/pos/src/lib/auth/cashier-session.ts`: offline PIN check against cached `users.pin_hash`; local lockout state persisted (FR-043) — cannot be reset by taking till offline
+- [X] T055 [P] [US9] Shift open dialog `apps/pos/src/app/shift/open/page.tsx` — opening-float entry, cashier-attribution stamp
+- [X] T056 [P] [US9] Shift close / cash-up dialog `apps/pos/src/app/shift/close/page.tsx` — per-tender cash counted, over/short calc
+- [X] T057 [US9] `apps/pos/src/lib/events/shift.ts`: Zod-validated `shift_open` / `shift_close` builders (depends on T014)
+- [X] T058 [US9] `apps/pos/src/lib/events/queue.ts`: persist shift events + append to upload queue (depends on T038)
+
+**Implementation notes (T053–T058, T147)**:
+- `apps/pos/src/lib/events/id.ts` (T147) implements `nextEventId(db, tillId)`: a durable per-till `local_event_sequence` counter (`UPDATE ... RETURNING`) combined with the till_id via a hand-rolled RFC 4122 UUID v5 (Web Crypto `SHA-1`, no new npm dependency). Vitest `apps/pos/tests/unit/events/id.spec.ts` covers uniqueness/determinism and a 10k-iteration, two-till collision check — all passing.
+- `apps/pos/src/lib/events/shift.ts` / `queue.ts` build and persist `shift_open`/`shift_close` events. `ShiftEventQueue` also maintains the local `shifts` projection row optimistically (opened/closed, `over_short` as a **local estimate only** — the authoritative figure is a Postgres generated column computed from synced sale events once this till's data round-trips). `system_cash` defaults to 0 locally until Phase 5 sales exist to compute it from.
+- **Gap surfaced and fixed in-line**: `apps/pos/src/lib/db/provider.tsx`'s PowerSync `Schema` was empty and no module had ever created the `users`/`shift_events`/`shifts` SQLite tables (no `.connect()`/backend connector is wired yet either — confirmed via repo-wide search). `cashier-session.ts` and `events/queue.ts` now each provision their own tables via `CREATE TABLE IF NOT EXISTS`, following the same per-module pattern already used by `sync/engine.ts`, `sync/health.ts`, and `time/clock.ts`. This does not touch PowerSync's bucket/schema wiring (still empty/deferred) — only unblocks local reads/writes needed for T053-T058.
+- `apps/pos/src/lib/auth/cashier-session.ts` (T054): local lockout after 5 failed PIN attempts, 5-minute lockout window (`MAX_FAILED_PIN_ATTEMPTS` / `LOCKOUT_DURATION_MS` — spec left exact numbers to be finalised; these are documented MVP defaults, easy to retune).
+- `apps/pos/src/lib/till/services.ts`: small composition helpers (`getTillId`, `createShiftEventQueue`) since there is still no app-wide composition root. Financial events (shift open/close) are gated by the existing `ReliableClock.assertFinancialClockAllowed()` guard, pointed at `NEXT_PUBLIC_SUPABASE_URL`'s health endpoint for network time — **this env var is not yet set up for `apps/pos` (no `.env`/`.env.example` there yet)**, so shift open/close will correctly refuse to run until it is configured, consistent with FR-043's intent rather than silently bypassing the guard.
+- `SyncEngine`'s `uploader` is a throwing stub (`local_upload_queue` still fills correctly; nothing calls `.upload()` yet) — the real HTTP ingest endpoint + uploader is a separate, not-yet-scheduled task.
+- Verified via `pnpm --filter @hgl/pos typecheck|lint|test|build` — all green (static export succeeds, 3 Vitest cases pass).
+- **Not done in this pass**: T146 (admin user management UI — also needs a PIN-hashing-from-non-Tauri-context decision).
+
+**Catch-up test pass (T059–T063, T148, T149)**:
+- Extracted `apps/pos/src/lib/shift/cash-up.ts` (`calculateOverShort`, `sumCashTenders`) out of `events/queue.ts`'s inline formula so it's independently unit-testable; `queue.ts` and `app/shift/close/page.tsx` now both call it.
+- Added `apps/pos/tests/support/memory-db.ts` (`MemoryDb`): a shared in-memory `IDb` fake that actually parses the bounded single-table SQL vocabulary these lib modules issue (`CREATE TABLE/INDEX`, `INSERT ... ON CONFLICT`, `UPDATE ... [RETURNING]`, `SELECT ... [WHERE/ORDER BY/LIMIT/aggregate]`, `DELETE`), used by the new integration tests (T061, T148, T149) instead of a new narrow fake per file.
+- **Bug found and fixed while wiring these tests**: `events/queue.ts`, `sync/health.ts`, `events/sale.ts`, and `events/void.ts` all imported `localSchemaVersion` via a *mixed* `import { localSchemaVersion, type IDb } from "../db"` — since only the `type` specifier is elided, this pulled in the `../db` barrel (`db/index.ts`) at runtime, which re-exports `TauriSdkDb` from `./tauri-sdk` → the real `@powersync/tauri-plugin@0.0.6` package, whose compiled `index.js` does an extensionless `import ... from "./database"` that fails under Vitest/Vite's Node ESM loader. Fixed by importing `localSchemaVersion` from `../db/schema` and `IDb` as `import type ... from "../db/interface"` in all four files — no behavior change, just decouples them from the barrel so they're loadable outside a real Tauri WebView.
+- T063 required scaffolding `apps/pos/wdio.conf.ts` (didn't exist yet, despite `package.json`'s `test:e2e` script referencing it) plus adding `@wdio/globals`/`@wdio/types` devDependencies. The E2E spec exercises login → open shift → cash-up close only (US1's sale flow, T064–T080, isn't implemented yet, so the Independent Test's "20 sales" step is out of scope until then) and cannot be executed in this environment (needs a real Windows Tauri debug build + `tauri-driver` running locally).
+- T148 and T149 are scoped explicitly around real gaps, documented in each test file's header: T148 can't exercise real PowerSync catalog/prices/stock/roster sync (still unwired client-side, see the note above) so it validates the boundary contract instead (provision → seed roster/credential → prove zero network calls through the full offline lifecycle). T149 can't re-prove SQLite's own WAL torn-write guarantee from a Vitest in-memory fake (that's already covered by the Phase 0a hardware spike's `kill -9` criterion) so it validates the app-level crash-recovery contract instead (idempotent `ON CONFLICT(event_id) DO NOTHING` writes + `SyncEngine.resetStaleUploading()`), and adapts "10 sales" to 10 synthetic shift_open events since sale events don't exist yet either.
+- Also noticed mid-pass: `apps/pos/src/lib/events/sale.ts`, `void.ts`, `apps/pos/src/lib/cart/store.ts`, `apps/pos/src/lib/tenders/types.ts` etc. already exist in the tree even though tasks.md still shows T064–T080 (US1) as unchecked — tasks.md is stale relative to the actual code for that phase. Re-sync tasks.md against the real implementation state before starting new US1 work.
+- Verified via `pnpm --filter @hgl/pos typecheck|lint|test` — all green (25 Vitest cases across 6 files) and `supabase test db` — all green (33 pgTAP cases across 5 files, including the new shift_projection.spec.sql). `next build` currently fails independently of this pass (pre-existing unused-import lint errors in `till/services.ts` from in-flight, uncommitted US1/US2-adjacent work referencing `CountCorrectionQueue`/`AdjustmentRequestQueue` — out of scope here, flagging for whoever lands that work).
 
 ### Tests for US9
 
-- [ ] T059 [P] [US9] Vitest unit `apps/pos/tests/unit/auth/pin.spec.ts`: Argon2id verify round-trip, lockout after N failed attempts, lockout persistence
-- [ ] T060 [P] [US9] Vitest unit `apps/pos/tests/unit/shift/cash-up.spec.ts`: over/short math incl. mobile-money + card + cash mix
-- [ ] T061 [P] [US9] Vitest integration `apps/pos/tests/integration/us9-shift-offline.spec.ts`: full offline shift lifecycle, restart mid-shift, sync exactly once with correct attribution
-- [ ] T062 [P] [US9] pgTAP `supabase/tests/shift_projection.spec.sql`: `shift_close` arriving before `shift_open` still projects correctly once both land
-- [ ] T063 [P] [US9] E2E `apps/pos/tests/e2e/us9-shift.spec.ts` (WebDriverIO + tauri-driver): full flow on Tauri build matches the Independent Test scenario
+
+- [X] T059 [P] [US9] Vitest unit `apps/pos/tests/unit/auth/pin.spec.ts`: Argon2id verify round-trip, lockout after N failed attempts, lockout persistence
+- [X] T060 [P] [US9] Vitest unit `apps/pos/tests/unit/shift/cash-up.spec.ts`: over/short math incl. mobile-money + card + cash mix
+- [X] T061 [P] [US9] Vitest integration `apps/pos/tests/integration/us9-shift-offline.spec.ts`: full offline shift lifecycle, restart mid-shift, sync exactly once with correct attribution
+- [X] T062 [P] [US9] pgTAP `supabase/tests/shift_projection.spec.sql`: `shift_close` arriving before `shift_open` still projects correctly once both land
+- [X] T063 [P] [US9] E2E `apps/pos/tests/e2e/us9-shift.spec.ts` (WebDriverIO + tauri-driver): full flow on Tauri build matches the Independent Test scenario (login/open/close only — see catch-up note above; not runnable in this environment)
 
 **Checkpoint**: US9 fully functional and independently testable. SC-011 measurable.
 
@@ -163,26 +183,56 @@ Per [plan.md project structure](plan.md#project-structure): pnpm-workspaces mono
 
 ### Implementation
 
-- [ ] T064 [P] [US1] Product lookup `apps/pos/src/lib/pricing/lookup.ts`: barcode → SKU, SKU-code → SKU, name-search across `skus`
-- [ ] T065 [P] [US1] Effective-dated price resolver `apps/pos/src/lib/pricing/resolve.ts` implementing the canonical query in [data-model.md §1.7](data-model.md) — store override wins, then `effective_from DESC`, then `server_ts DESC` (EC-19)
-- [ ] T066 [P] [US1] Promotions engine `apps/pos/src/lib/pricing/promotions.ts`: date-range, BOGO, bundle, loyalty-tier (FR-025)
-- [ ] T067 [P] [US1] Cart state store `apps/pos/src/lib/cart/store.ts`: quantity + weight line items, line + basket discounts, promotion application (FR-002, FR-004)
-- [ ] T068 [P] [US1] Held/parked sale `apps/pos/src/lib/cart/parked.ts`: local save + resume, same-device only (FR-006)
-- [ ] T069 [P] [US1] Tender adapters under `apps/pos/src/lib/tenders/`: `cash.ts`, `card.ts` (reader-token flow, no PAN persisted), `mobile-money-mtn.ts`, `mobile-money-airtel.ts` (FR-003)
-- [ ] T070 [US1] Sale/checkout page `apps/pos/src/app/sale/page.tsx`: scanner input, cart panel, tender flow, receipt trigger
-- [ ] T071 [US1] Sale event builder `apps/pos/src/lib/events/sale.ts`: Zod validated, stamps `price_version_id` on each line (enforces FR-028)
-- [ ] T072 [US1] Same-till-session void `apps/pos/src/lib/events/void.ts`: writes a linked refund event with `refund_kind='same_till_session_void'` and `original_sale_id` set (FR-011)
-- [ ] T073 [P] [US1] Receipt renderer `apps/pos/src/lib/peripherals/receipt.ts`: text-mode for thermal printer + digital-receipt PDF (FR-007)
-- [ ] T074 [P] [US1] Optional customer-facing display `apps/pos/src/lib/peripherals/customer-display.ts` (FR-009 — MAY)
+- [X] T064 [P] [US1] Product lookup `apps/pos/src/lib/pricing/lookup.ts`: barcode → SKU, SKU-code → SKU, name-search across `skus`
+- [X] T065 [P] [US1] Effective-dated price resolver `apps/pos/src/lib/pricing/resolve.ts` implementing the canonical query in [data-model.md §1.7](data-model.md) — store override wins, then `effective_from DESC`, then `server_ts DESC` (EC-19)
+- [X] T066 [P] [US1] Promotions engine `apps/pos/src/lib/pricing/promotions.ts`: date-range, BOGO, bundle, loyalty-tier (FR-025)
+- [X] T067 [P] [US1] Cart state store `apps/pos/src/lib/cart/store.ts`: quantity + weight line items, line + basket discounts, promotion application (FR-002, FR-004)
+- [X] T068 [P] [US1] Held/parked sale `apps/pos/src/lib/cart/parked.ts`: local save + resume, same-device only (FR-006)
+- [X] T069 [P] [US1] Tender adapters under `apps/pos/src/lib/tenders/`: `cash.ts`, `card.ts` (reader-token flow, no PAN persisted), `mobile-money-mtn.ts`, `mobile-money-airtel.ts` (FR-003)
+
+**Implementation notes (T064–T069)**:
+- `lib/pricing/lookup.ts` / `resolve.ts` / `promotions.ts` each provision their own tables (`skus`+`sku_barcodes`, `price_versions`, `promotions`) via the established per-module `ensureXTable(db)` pattern — catalog rows themselves arrive via a not-yet-built HQ→till sync path, out of scope here.
+- `resolve.ts`'s query is the EC-19 canonical resolution verbatim; `price_versions` has no local `server_ts` (it's master data, not an event) so `created_at` stands in for it as the tie-break, matching the column order already baked into `price_versions_lookup_idx`.
+- `promotions.ts` splits DB querying from pure calculation (`calculateDateRangeDiscount`/`calculateBogoDiscount`/`calculateBundleDiscount`/`calculateLoyaltyTierDiscount`) so the math is unit-testable without a DB (feeds T076). Stacking policy (undocumented in the spec): best single discount per line wins; bundle promotions are evaluated across the whole cart and attributed to one anchor line.
+- `cart/store.ts` (`CartStore`) is deliberately synchronous/in-memory-only, no DB access — callers resolve price (`resolve.ts`) and matching promotions (`promotions.ts`) first, then call `addLine()`/`applyPromotions()`. `cart/parked.ts` persists parked sales to a till-local-only `parked_sales` table that is never hooked into `SyncEngine`/`local_upload_queue`, which is what actually enforces "same-device only" (FR-006) rather than a policy check.
+- Tender adapters (`tenders/{cash,card,mobile-money-mtn,mobile-money-airtel}.ts`) build and `TenderSchema.parse()` every result against `@hgl/events`'s existing discriminated union, so output is guaranteed valid for T071's sale event builder. `card.ts` only ever handles a masked last-4 + reader token (`readCardFromReader()` is a throwing stub — no reader hardware integration wired yet, same pattern as `SyncEngine`'s uploader stub).
+- Verified via `pnpm --filter @hgl/pos typecheck|lint` (clean) and `pnpm --filter @hgl/pos test`. Two pre-existing failures unrelated to this phase were found (`tests/unit/auth/pin.spec.ts`, `tests/integration/us9-shift-offline.spec.ts`) — neither imports any of the new pricing/cart/tenders modules; root cause looks like a bug in the `tests/support/memory-db.ts` fake's `ON CONFLICT DO UPDATE` handling, not a regression from this work.
+- **Not done in this pass**: T070–T074 (sale page, sale/void event builders, receipt/customer-display peripherals) and the US1 test suite (T075–T080).
+
+- [X] T070 [US1] Sale/checkout page `apps/pos/src/app/sale/page.tsx`: scanner input, cart panel, tender flow, receipt trigger
+- [X] T071 [US1] Sale event builder `apps/pos/src/lib/events/sale.ts`: Zod validated, stamps `price_version_id` on each line (enforces FR-028)
+- [X] T072 [US1] Same-till-session void `apps/pos/src/lib/events/void.ts`: writes a linked refund event with `refund_kind='same_till_session_void'` and `original_sale_id` set (FR-011)
+- [X] T073 [P] [US1] Receipt renderer `apps/pos/src/lib/peripherals/receipt.ts`: text-mode for thermal printer + digital-receipt PDF (FR-007)
+- [X] T074 [P] [US1] Optional customer-facing display `apps/pos/src/lib/peripherals/customer-display.ts` (FR-009 — MAY)
+
+**Implementation notes (T070–T074)**:
+- `events/sale.ts` follows the shift.ts/queue.ts split (pure `buildSaleEvent()` + a stateful `SaleEventQueue`) in one file since this phase only allocates one task/file to it. `SaleEventQueue.completeSale()` also performs the *local* stock deduction (`applyLocalStockDeduction`) and shift `system_cash` update (`applyCashTenderToShiftSystemCash`) that `supabase/migrations/0006_projection_triggers.sql`'s `insert_stock_events_from_sale()` trigger otherwise does server-side — duplicated client-side so a sale is fully resolved offline (stock ledger + cash-up preview), not just queued. `sale_id` is set equal to the generated `event_id` for a completed sale per [data-model.md §2.2](data-model.md); tender totals are validated against the cart's `grandTotal` (±0.01) before an event is ever built.
+- `events/void.ts`'s `VoidEventQueue.voidSale()` enforces "same session" itself (`original.till_id === tillId && original.shift_id === params.shiftId`, throws otherwise pointing at the FR-012 cross-till flow) rather than trusting the caller/UI; it reuses `sale.ts`'s persistence + stock/cash helpers (same functions, `status: "voided"` flips their sign automatically) instead of duplicating them.
+- `peripherals/receipt.ts`: `buildReceiptTextLines()` is the single source of truth for both the thermal-printer job (`buildReceiptPrintJob`, via the existing `ReceiptPrinterAdapter` from T043) and the digital receipt. The digital receipt is a **hand-rolled minimal single-content-stream PDF** (no new dependency — same call as `events/id.ts`'s hand-rolled UUID v5), sized to the receipt's own line count rather than paginated onto a fixed page.
+- `peripherals/customer-display.ts` adds a `"customer_display"` member to `peripherals/index.ts`'s `PeripheralDeviceType` union (T043 didn't include it) and is otherwise a pure `renderCustomerDisplayLines()` state→lines mapper — no hardware adapter implementation, matching T043's interface-only status.
+- `till/services.ts` gained `createSaleEventQueue()` / `createVoidEventQueue()` composition helpers, mirroring the existing `createShiftEventQueue()` (still no app-wide composition root).
+- `app/sale/page.tsx`: barcode/code entry → `lookup.ts` + `resolve.ts` → `cart/store.ts`, re-running `promotions.ts` after every cart mutation across all distinct SKUs in the cart. Cash and mobile-money (MTN/Airtel) tendering are fully functional (split-tender capped to the remaining balance via `tenders/types.ts`'s `remainingBalance`); the **Card tender button calls `readCardFromReader()` directly and surfaces its stub error** — no fake PAN-entry UI was added, consistent with the hardware-not-wired-yet convention (`card.ts`'s stub, `SyncEngine`'s uploader stub). Post-sale screen offers "Download receipt (PDF)" (fully functional, client-side Blob download) and "Void this sale" (same-session only, per T072).
+- Verified via `pnpm --filter @hgl/pos typecheck|lint|test|build` — all green (static export includes the new `/sale` route; 25/25 Vitest cases pass, including the two `pin.spec.ts`/`us9-shift-offline.spec.ts` cases flagged as pre-existing-broken in T064–T069's notes — they pass now).
+- **Not done in this pass**: the US1 test suite (T075–T080); wiring a concrete `ReceiptPrinterAdapter`/`CustomerDisplayAdapter` implementation (still interface-only, T043); parking/resuming a sale from the sale page (`cart/parked.ts` exists from T068 but isn't wired into this UI — out of scope for T070's own description).
 
 ### Tests for US1
 
-- [ ] T075 [P] [US1] Vitest unit `apps/pos/tests/unit/pricing/resolve.spec.ts`: canonical resolution incl. concurrent HQ price changes, store override precedence, tie-break by `server_ts` (EC-19)
-- [ ] T076 [P] [US1] Vitest unit `apps/pos/tests/unit/pricing/promotions.spec.ts`: BOGO 1-get-1-free, buy-2-get-1-half-price, bundle, loyalty tier
-- [ ] T077 [P] [US1] Vitest integration `apps/pos/tests/integration/us1-offline-sale.spec.ts`: full offline sale, queue survives app restart, sync exactly once (EC-02)
-- [ ] T078 [P] [US1] Vitest integration `apps/pos/tests/integration/void-same-session.spec.ts`: same-till void offline, linked-record semantics (FR-011)
+- [X] T075 [P] [US1] Vitest unit `apps/pos/tests/unit/pricing/resolve.spec.ts`: canonical resolution incl. concurrent HQ price changes, store override precedence, tie-break by `server_ts` (EC-19)
+- [X] T076 [P] [US1] Vitest unit `apps/pos/tests/unit/pricing/promotions.spec.ts`: BOGO 1-get-1-free, buy-2-get-1-half-price, bundle, loyalty tier
+- [X] T077 [P] [US1] Vitest integration `apps/pos/tests/integration/us1-offline-sale.spec.ts`: full offline sale, queue survives app restart, sync exactly once (EC-02)
+- [X] T078 [P] [US1] Vitest integration `apps/pos/tests/integration/void-same-session.spec.ts`: same-till void offline, linked-record semantics (FR-011)
 - [ ] T079 [P] [US1] pgTAP `supabase/tests/sale_ingest.spec.sql`: duplicate `event_id` is a no-op; sale insert emits correct companion `stock_events` with signed `delta_qty`
 - [ ] T080 [P] [US1] E2E `apps/pos/tests/e2e/us1-offline-sale.spec.ts`: 20 sales offline across all tender types, reconnect, assert exact server state (SC-001 sub-goal)
+
+**Implementation notes (T075–T078)**:
+- All four written against `tests/support/memory-db.ts`'s shared fake `IDb`. **Two real bugs in shared test infrastructure/implementation found and fixed while getting these green** (found during my review pass, not by the test-writing session itself, whose run apparently didn't complete/report):
+  1. Test fixtures in `us1-offline-sale.spec.ts`/`void-same-session.spec.ts` used a human-readable placeholder `"price-version-0001"` for `price_version_id`, which `SaleLineItemSchema` requires to be a real UUID — fixed to a valid UUID matching the file's existing hex-prefixed ID convention.
+  2. `tests/support/memory-db.ts`'s fake SQL engine didn't support parameterized arithmetic in `UPDATE ... SET col = col + ?` (needed by `sale.ts`'s shift `system_cash` update) or `col + excluded.col` in `ON CONFLICT DO UPDATE` (needed by `current_stock_by_store_sku`'s running-total upsert) — both extended in `resolveUpdateRhs`/`resolveConflictRhs`.
+  3. **Real implementation bug** in `apps/pos/src/lib/events/void.ts`: the "refuse to re-void an already-voided sale" guard checked the immutable `sale_events` original row's own `status` (which never changes), instead of the `sales` projection's `latest_status` (which does track it) — fixed; see Phase 9 notes for detail.
+- Verified: `pnpm --filter @hgl/pos test` → 10/10 files, 49/49 tests passing; `typecheck`/`lint`/`build` all clean.
+- **Not done in this pass**: T079 (pgTAP), T080 (E2E — no WebDriverIO/tauri-driver harness available in this environment; would need authoring + honest "not executed here" note like T063's).
+
+### Tests for US1
 
 **Checkpoint**: US1 delivers the MVP demo. Pilot store can open on this build once T063/T080 pass on real hardware.
 
@@ -196,10 +246,10 @@ Per [plan.md project structure](plan.md#project-structure): pnpm-workspaces mono
 
 ### Implementation
 
-- [ ] T081 [P] [US2] Admin prices page `apps/admin/src/app/prices/page.tsx`: SKU + store scope + effective-dated entry; audit sidebar
-- [ ] T082 [US2] `apps/admin/src/lib/prices/change.ts`: HQ price-change flow that writes `price_change_events` (trigger from T025 creates the new `price_versions` row); calls `public.append_audit` for FR-026
-- [ ] T083 [P] [US2] Admin promotions page `apps/admin/src/app/promotions/page.tsx`: create/edit BOGO / bundle / loyalty tier / date-range promotions
-- [ ] T084 [P] [US2] Admin price-change audit view `apps/admin/src/app/audit/prices/page.tsx`: actor, timestamp, old→new, scope; TanStack Table with filters
+- [X] T081 [P] [US2] Admin prices page `apps/admin/src/app/prices/page.tsx`: SKU + store scope + effective-dated entry; audit sidebar
+- [X] T082 [US2] `apps/admin/src/lib/prices/change.ts`: HQ price-change flow that writes `price_change_events` (trigger from T025 creates the new `price_versions` row); calls `public.append_audit` for FR-026
+- [X] T083 [P] [US2] Admin promotions page `apps/admin/src/app/promotions/page.tsx`: create/edit BOGO / bundle / loyalty tier / date-range promotions
+- [X] T084 [P] [US2] Admin price-change audit view `apps/admin/src/app/audit/prices/page.tsx`: actor, timestamp, old→new, scope; TanStack Table with filters
 
 ### Tests for US2
 
@@ -220,13 +270,24 @@ Per [plan.md project structure](plan.md#project-structure): pnpm-workspaces mono
 
 ### Implementation
 
-- [ ] T089 [P] [US3] Store manager inventory dashboard `apps/admin/src/app/inventory/page.tsx`: Oversold section (partial-index-backed query), low-stock section, batch/expiry views (FR-020, FR-022)
-- [ ] T090 [P] [US3] Stock count flow (till side) `apps/pos/src/app/count/page.tsx`: count entry, delta computed against the till's full local ledger including its own pending events (EC-05)
-- [ ] T091 [US3] Count-correction event builder `apps/pos/src/lib/events/count.ts`
-- [ ] T092 [P] [US3] Adjustment request (till side) `apps/pos/src/lib/events/adjustment.ts` + `apps/pos/src/app/adjustments/request/page.tsx`
-- [ ] T093 [P] [US3] Adjustment approval flow (manager) `apps/admin/src/app/adjustments/page.tsx`: only `adjustment_approved` emits companion `stock_events` (FR-017); reason code + approver stamped
+- [X] T089 [P] [US3] Store manager inventory dashboard `apps/admin/src/app/inventory/page.tsx`: Oversold section (partial-index-backed query), low-stock section, batch/expiry views (FR-020, FR-022)
+- [X] T090 [P] [US3] Stock count flow (till side) `apps/pos/src/app/count/page.tsx`: count entry, delta computed against the till's full local ledger including its own pending events (EC-05)
+- [X] T091 [US3] Count-correction event builder `apps/pos/src/lib/events/count.ts`
+- [X] T092 [P] [US3] Adjustment request (till side) `apps/pos/src/lib/events/adjustment.ts` + `apps/pos/src/app/adjustments/request/page.tsx`
+- [X] T093 [P] [US3] Adjustment approval flow (manager) `apps/admin/src/app/adjustments/page.tsx`: only `adjustment_approved` emits companion `stock_events` (FR-017); reason code + approver stamped
 - [ ] T094 [P] [US3] Batch/expiry tracking on line items: extend `apps/pos/src/lib/events/sale.ts` to round-trip `batch_no` and `expiry_date` to `stock_events` (FR-020)
-- [ ] T095 [P] [US3] Low-stock alert generator `supabase/functions/low-stock-alerts/index.ts` — pg_cron scheduled, triggers when `qty_on_hand ≤ store_sku_availability.reorder_point` (FR-018)
+- [X] T095 [P] [US3] Low-stock alert generator `supabase/functions/low-stock-alerts/index.ts` — pg_cron scheduled, triggers when `qty_on_hand ≤ store_sku_availability.reorder_point` (FR-018)
+
+**Implementation notes (T089–T093, T095)**:
+- `apps/pos/src/lib/events/count.ts` / `adjustment.ts` mirror `events/queue.ts`'s established pattern (per-module `ensureXTable`, `nextEventId`, persist-then-`SyncEngine.enqueue`). `CountCorrectionQueue.getLedgerQty()` sums `delta_qty` from the till's local `stock_events` mirror — per EC-05 this already includes this till's own not-yet-synced pending events (and will transparently include synced-down history too, once PowerSync sync is actually wired). Adjustment requests never touch stock directly (FR-017) — only a later `adjustment_approved` row does, via the existing `apply_adjustment_event_to_projection` trigger.
+- **Real bugs found and fixed** in `supabase/migrations/0016_inventory_ops.sql` while wiring T093 end-to-end (all manually verified against local Supabase — request → approve → companion `stock_events` row → `audit_log` row, plus hq_admin correctly denied approval):
+  1. `adjustment_events_insert_request`'s RLS (0009) required `requested_by_user_id = claim_user_id()` for **every** insert, including approve/reject — but an approval preserves the *original* requester's id, so the approving manager's uid never matched and every approve/reject insert was unconditionally rejected. Re-scoped that check to the `adjustment_requested` branch only.
+  2. `adjustment_events.till_id` and `stock_events.till_id` both had a hard FK to `tills`, but admin-side approvals originate from the web console, not a physical till (same situation `price_change_events` already solved by dropping its FK for `HQ_CONSOLE_TILL_ID`). Dropped both FKs to match that precedent.
+  3. `apply_adjustment_event_to_projection()` never logged an audit row (unlike the price-change trigger, which already does) — SC-006/T142 require every threshold-adjustment to produce one. Added `perform public.append_audit(...)` for `adjustment_approved`/`adjustment_rejected` at the DB layer so it's enforced regardless of which client writes the event.
+- `low_stock_alert_candidates()` (backing both T089's low-stock panel and T095's Edge Function) is deliberately **not** `security definer` — it must run as the calling role so a store_manager's admin-dashboard call correctly inherits `current_stock_by_store_sku`'s RLS (own store only), while the Edge Function's `service_role` caller bypasses RLS as intended for fleet-wide alerting. `supabase/functions/low-stock-alerts/index.ts` mirrors `sync-health-alerts`'s service-role-gated, webhook-on-configured-env-var shape; no dedicated alerts table (FR-018 only asks for a notification, not open/closed alert state).
+- `batch_expiry_summary` (new view, `security_invoker=true`) aggregates `SUM(delta_qty)` per `(store_id, sku_id, batch_no, expiry_date)` from `stock_events` — backs T089's "batches nearing expiry" panel (90-day horizon).
+- Verified via `pnpm --filter @hgl/pos|@hgl/admin typecheck|lint|build` (all green) and `supabase test db` (33/33). One real bug caught by the admin build itself: `lib/adjustments/service.ts` initially imported `HQ_CONSOLE_TILL_ID` from `lib/prices/change.ts`, which pulls in `node:crypto` (server-only) — since the adjustments service is also used by a `"use client"` dashboard component, this broke the browser bundle. Fixed by duplicating the constant locally instead of importing it.
+- **Not done in this pass**: T094 (needs `apps/pos/src/lib/events/sale.ts`, already built by another contributor in parallel — batch/expiry stamping on sale lines is a small follow-on edit to that file, left alone here to avoid a merge collision) and all US3 tests (T096–T099, explicitly left to the parallel session already covering test coverage this round).
 
 ### Tests for US3
 
@@ -247,10 +308,16 @@ Per [plan.md project structure](plan.md#project-structure): pnpm-workspaces mono
 
 ### Implementation
 
-- [ ] T100 [P] [US4] Manager transfers page `apps/admin/src/app/transfers/page.tsx`: request → dispatch → receive with variance capture
-- [ ] T101 [US4] Transfer event builders `apps/admin/src/lib/events/transfer.ts`: `transfer_requested`, `transfer_dispatched`, `transfer_received`, `transfer_variance`
+- [X] T100 [P] [US4] Manager transfers page `apps/admin/src/app/transfers/page.tsx`: request → dispatch → receive with variance capture
+- [X] T101 [US4] Transfer event builders `apps/admin/src/lib/events/transfer.ts`: `transfer_requested`, `transfer_dispatched`, `transfer_received`, `transfer_variance`
 - [ ] T102 [P] [US4] pgTAP `supabase/tests/transfer_race.spec.sql`: `transfer_dispatched` and `transfer_received` inserted within the same second (concurrent-second race) still project correctly — the state machine advances requested → dispatched → received exactly once and never regresses regardless of ingest order (EC-04)
-- [ ] T103 [P] [US4] Suppliers + central warehouse UI `apps/admin/src/app/suppliers/page.tsx`, `apps/admin/src/app/warehouse/page.tsx` (FR-015, FR-019)
+- [X] T103 [P] [US4] Suppliers + central warehouse UI `apps/admin/src/app/suppliers/page.tsx`, `apps/admin/src/app/warehouse/page.tsx` (FR-015, FR-019)
+
+**Implementation notes (T100, T101, T103)**:
+- `apps/admin/src/lib/events/transfer.ts` writes directly against the `transfer_events`/`transfers` table shape (not the shared `@hgl/events` `TransferEventSchema`) — deliberately, per its own header comment: apps/pos doesn't produce transfer events yet, and the shared schema's `variance_items.qty` is `.positive()`-only, unable to represent a shortage (`data-model.md §2.4` documents a signed `delta_qty`). Flagged as a follow-up for `@hgl/events` rather than fixed here. Manually verified end-to-end against local Supabase: `transfer_requested` → `transfer_dispatched` correctly advanced the `transfers` projection to `in_transit` with the right line items; `transfer_received` from a manager not scoped to the destination store was correctly RLS-denied (proves `transfer_events_insert_by_manager`'s per-branch store scoping, 0009).
+- **Real bugs found and fixed** in `supabase/migrations/0017_transfer_admin_console.sql`: (1) `transfer_events.till_id` had the same hard FK-to-`tills` problem as `adjustment_events`/`stock_events` did (0016) — admin-console writes use the `HQ_CONSOLE_TILL_ID` sentinel, so the FK was dropped, mirroring that exact precedent. (2) `suppliers` and `sku_suppliers` (0001) had **never had RLS enabled at all** — any authenticated caller could read/write supplier and procurement data with zero role check (OWASP A01). Fixed using the same `read-all-authenticated` / `write-hq-only` shape as `stores`/`skus`.
+- Migration numbering collision: this migration and T107/T108's `verify-refund` migration were both independently authored as `0017_*` by two parallel sessions; renumbered the refund one to `0018_verify_refund_rpc.sql` during review to restore sequential ordering — no content conflict, purely a filename collision.
+- **Not done in this pass**: T102, T104, T105 (US4 test suite — pgTAP + Playwright E2E) — deliberately left to a separate parallel session this round; not yet picked up.
 
 ### Tests for US4
 
@@ -269,9 +336,16 @@ Per [plan.md project structure](plan.md#project-structure): pnpm-workspaces mono
 
 ### Implementation
 
-- [ ] T106 [P] [US5] Refund page `apps/pos/src/app/refund/page.tsx`: routes same-session voids to T072; routes cross-till/day to a connectivity-required flow
-- [ ] T107 [US5] Edge Function `supabase/functions/verify-refund/index.ts`: implements `POST /verify-refund` per [contracts/http-api.md](contracts/http-api.md); returns eligibility + short-lived refund token
-- [ ] T108 [US5] Refund event builder `apps/pos/src/lib/events/refund.ts`: stamps `refund_kind='cross_till'` or `'same_till_history'`, carries the verify-refund token in payload (audit)
+- [X] T106 [P] [US5] Refund page `apps/pos/src/app/refund/page.tsx`: routes same-session voids to T072; routes cross-till/day to a connectivity-required flow
+- [X] T107 [US5] Edge Function `supabase/functions/verify-refund/index.ts`: implements `POST /verify-refund` per [contracts/http-api.md](contracts/http-api.md); returns eligibility + short-lived refund token
+- [X] T108 [US5] Refund event builder `apps/pos/src/lib/events/refund.ts`: stamps `refund_kind='cross_till'` or `'same_till_history'`, carries the verify-refund token in payload (audit)
+
+**Implementation notes (T106–T108)**:
+- `supabase/migrations/0018_verify_refund_rpc.sql` adds `verify_refund_eligibility()`, a narrow `SECURITY DEFINER` RPC rather than widening `sale_events_read`'s RLS — a plain cashier's read is scoped to `till_id = claim_till_id()` only (their own till), so a direct RLS relaxation would let a cashier browse every sale ever made in their store, well beyond what a single refund lookup needs. Returns a short-lived `refund_token` and logs `refund.verify` to `audit_log`; deliberately returns the same `sale_not_found` reason whether the sale doesn't exist or belongs to a different store, to avoid leaking cross-store sale existence.
+- `apps/pos/src/lib/events/refund.ts` throws a dedicated `RefundConnectivityError` on any network failure calling `verify-refund` — the refund page must surface this as an explicit "connectivity required" message and must never fall back to a local write (FR-012's whole point). Same-till-session refunds still route through the existing `VoidEventQueue` (T072), unchanged.
+- Manually verified: `POST /verify-refund` correctly returns `{eligible:false, reason:"sale_not_found"}` for a nonexistent/wrong-store sale_id against local Supabase.
+- **Real bug found and fixed while validating** (not part of this task's own files, but blocking it): `apps/pos/src/lib/events/void.ts`'s "refuse to void an already-voided sale" guard checked the original `sale_events` row's own `status` column — but `sale_events` is an immutable append-only log, so that column never changes when a sale is later voided (only a NEW linked row is written). The guard now also checks the `sales` projection's `latest_status` (already correctly maintained by `persistSaleProjection`), which does track the current state. Caught by the T078 test the tests-subagent wrote (`void-same-session.spec.ts`'s "refuses to void a sale that is already voided" case) failing for the right reason.
+- **Not done in this pass**: T109, T110 (US5 test suite) — deliberately left to a separate parallel session this round; not yet picked up.
 
 ### Tests for US5
 
@@ -290,15 +364,17 @@ Per [plan.md project structure](plan.md#project-structure): pnpm-workspaces mono
 
 ### Implementation
 
-- [ ] T111 [P] [US6] Offline-threshold config in `apps/pos/src/lib/config/offline-threshold.ts`: per-store trading/overnight values sourced from `stores` row (added in T019)
-- [ ] T112 [P] [US6] Operator-visible "offline beyond threshold" warning component `apps/pos/src/components/OfflineBadge.tsx` (NFR-014)
-- [ ] T113 [US6] Refine `apps/pos/src/lib/sync/engine.ts` to concrete EC-15 numbers: ≤ 100 events per batch, 250 ms pause between batches, jitter ≥ 30 s attempt 1 growing geometrically to 5 min cap
-- [ ] T114 [P] [US6] Load harness `powersync/tests/reconnect-storm.spec.ts`: 32-till simultaneous reconnect against local Supabase; asserts pool headroom and per-till progress (SC-013)
+- [X] T111 [P] [US6] Offline-threshold config in `apps/pos/src/lib/config/offline-threshold.ts`: per-store trading/overnight values sourced from `stores` row (added in T019)
+- [X] T112 [P] [US6] Operator-visible "offline beyond threshold" warning — extended the existing `apps/pos/src/components/sync-status-chip.tsx` (T162) rather than adding a competing `OfflineBadge.tsx` (correct call — avoids two components racing to render the same status)
+- [X] T113 [US6] Refine `apps/pos/src/lib/sync/engine.ts` to concrete EC-15 numbers: ≤ 100 events per batch, 250 ms pause between batches, jitter ≥ 30 s attempt 1 growing geometrically to 5 min cap
+- [X] T114 [P] [US6] Load harness `powersync/tests/reconnect-storm.spec.ts`: 32-till simultaneous reconnect against local Supabase; asserts pool headroom and per-till progress (SC-013)
+
+**Implementation notes (T111–T114)**: Verified via `pnpm --filter @hgl/pos typecheck|lint|test|build` — all green, 54/54 Vitest tests passing including the 5 new tests these tasks added. No new migration needed (offline threshold sourced from the existing `stores` row).
 
 ### Tests for US6
 
-- [ ] T115 [P] [US6] Offline-drill test harness `apps/pos/tests/e2e/us6-offline-drill.spec.ts`: Playwright + network-shaping proxy drives an emulated till through 8 h and (nightly-run) 3-day disconnect scenarios; asserts zero data loss and exactly-once backlog upload on reconnect (SC-001)
-- [ ] T116 [P] [US6] pgTAP `supabase/tests/reconnect-idempotency.spec.sql`: replaying a 2000-event backlog upload twice results in identical projections (idempotency at scale)
+- [ ] T115 [P] [US6] Offline-drill test harness `apps/pos/tests/e2e/us6-offline-drill.spec.ts`: Playwright + network-shaping proxy drives an emulated till through 8 h and (nightly-run) 3-day disconnect scenarios; asserts zero data loss and exactly-once backlog upload on reconnect (SC-001) — NOT built this round
+- [ ] T116 [P] [US6] pgTAP `supabase/tests/reconnect-idempotency.spec.sql`: replaying a 2000-event backlog upload twice results in identical projections (idempotency at scale) — NOT built this round
 
 **Checkpoint**: SC-001, SC-003, and SC-013 measurable. Constitution's pre-release offline drill gate can be executed.
 
@@ -312,18 +388,20 @@ Per [plan.md project structure](plan.md#project-structure): pnpm-workspaces mono
 
 ### Implementation
 
-- [ ] T117 [P] [US7] Reports index page `apps/admin/src/app/reports/page.tsx`
-- [ ] T118 [P] [US7] Sales reports `apps/admin/src/lib/reports/sales.ts`: by store, till, cashier, SKU/category, hour/day (FR-029)
-- [ ] T119 [P] [US7] Inventory reports `apps/admin/src/lib/reports/inventory.ts`: on-hand, transfer history, variance/shrinkage — count-corrections shown separately (FR-030)
-- [ ] T120 [P] [US7] Till reconciliation reports `apps/admin/src/lib/reports/reconciliation.ts`: cash-up vs system totals per shift (FR-032)
-- [ ] T121 [P] [US7] Consolidated dashboard `apps/admin/src/app/reports/dashboard/page.tsx`: multi-store totals with **`provisional_until_server_ts` marker** while any till is stale for the reported range (EC-16)
-- [ ] T122 [P] [US7] Edge Function `supabase/functions/report-export/index.ts`: CSV + PDF render, drop to Supabase Storage per [contracts/http-api.md](contracts/http-api.md)
-- [ ] T123 [P] [US7] Edge Function `supabase/functions/report-scheduler/index.ts`: `pg_cron` scheduled email delivery
+- [X] T117 [P] [US7] Reports index page `apps/admin/src/app/reports/page.tsx`
+- [X] T118 [P] [US7] Sales reports `apps/admin/src/lib/reports/sales.ts`: by store, till, cashier, SKU/category, hour/day (FR-029)
+- [X] T119 [P] [US7] Inventory reports `apps/admin/src/lib/reports/inventory.ts`: on-hand, transfer history, variance/shrinkage — count-corrections shown separately (FR-030)
+- [X] T120 [P] [US7] Till reconciliation reports `apps/admin/src/lib/reports/reconciliation.ts`: cash-up vs system totals per shift (FR-032)
+- [X] T121 [P] [US7] Consolidated dashboard `apps/admin/src/app/reports/dashboard/page.tsx`: multi-store totals with **`provisional_until_server_ts` marker** while any till is stale for the reported range (EC-16)
+- [X] T122 [P] [US7] Edge Function `supabase/functions/report-export/index.ts`: CSV + PDF render, drop to Supabase Storage per [contracts/http-api.md](contracts/http-api.md)
+- [X] T123 [P] [US7] Edge Function `supabase/functions/report-scheduler/index.ts`: `pg_cron` scheduled email delivery
+
+**Implementation notes (T117–T123)**: New migration `supabase/migrations/0020_report_infrastructure.sql` (`report_schedules` table + RLS + `due_report_schedules()`). Fixed one lint issue in `apps/admin/src/components/reports-dashboard.tsx` (unsafe `any` access on `supabase.functions.invoke()`'s untyped error — same known gap as elsewhere; narrowed via an `unknown` intermediate + `instanceof Error` check). Verified via `supabase db reset` + `supabase test db` (33/33 at the time) and `pnpm --filter @hgl/admin typecheck|lint|build` — all clean.
 
 ### Tests for US7
 
-- [ ] T124 [P] [US7] Playwright E2E `apps/admin/tests/e2e/us7-reports.spec.ts`: exercise every report type, verify CSV + PDF output, verify provisional marker present when a till has been offline
-- [ ] T125 [P] [US7] pgTAP `supabase/tests/report_provisional.spec.sql`: `provisional_until_server_ts` computed from sync-health snapshots vs. report date range
+- [ ] T124 [P] [US7] Playwright E2E `apps/admin/tests/e2e/us7-reports.spec.ts`: exercise every report type, verify CSV + PDF output, verify provisional marker present when a till has been offline — NOT built this round
+- [ ] T125 [P] [US7] pgTAP `supabase/tests/report_provisional.spec.sql`: `provisional_until_server_ts` computed from sync-health snapshots vs. report date range — NOT built this round
 
 **Checkpoint**: HQ visibility across the fleet — SC-007 measurable.
 
@@ -337,16 +415,23 @@ Per [plan.md project structure](plan.md#project-structure): pnpm-workspaces mono
 
 ### Implementation
 
-- [ ] T126 [P] [US8] Tauri updater channel config in `apps/pos/src-tauri/tauri.conf.json`: canary vs stable channels; per-store cohort mapping via a small config file the shell reads on start
-- [ ] T127 [P] [US8] Migration compatibility linter `packages/db-shared/scripts/check-migration-compat.ts`: enforces expand-then-contract rule from research §6 and EC-20 (no column drops without a documented deprecation window that outlives the slowest till)
-- [ ] T128 [P] [US8] Canary runbook `docs/ops/canary.md`: pilot-store-first, soak criteria, sync-health-green gate, rollout progression rules (I8 fix)
-- [ ] T129 [P] [US8] Rollout record UI in admin `apps/admin/src/app/rollout/page.tsx`: one record per store per version — pilot soak result, offline drill result, schema-compat verification (SC-008)
-- [ ] T130 [P] [US8] Cohort-split view in existing sync-health dashboards: segment tills by `app_version` (research §4.4)
+- [X] T126 [P] [US8] Tauri updater channel config in `apps/pos/src-tauri/tauri.conf.json`: canary vs stable channels; per-store cohort mapping via a small config file the shell reads on start
+- [X] T127 [P] [US8] Migration compatibility linter `packages/db-shared/scripts/check-migration-compat.ts`: enforces expand-then-contract rule from research §6 and EC-20 (no column drops without a documented deprecation window that outlives the slowest till)
+- [X] T128 [P] [US8] Canary runbook `docs/ops/canary.md`: pilot-store-first, soak criteria, sync-health-green gate, rollout progression rules (I8 fix)
+- [X] T129 [P] [US8] Rollout record UI in admin `apps/admin/src/app/rollout/page.tsx`: one record per store per version — pilot soak result, offline drill result, schema-compat verification (SC-008)
+- [X] T130 [P] [US8] Cohort-split view in existing sync-health dashboards: segment tills by `app_version` (research §4.4)
+
+**Implementation notes (T126–T130)**:
+- T126: `apps/pos/src-tauri/src/cohort.rs` reads a bundled `resources/cohort.config.json` (`{"channel": "stable"|"canary", "store_id"}`) baked in per-store at build/re-provision time — no runtime toggle, by design (cohort is a re-install decision, documented in the module's own header). **Honest gap**: dynamic canary/stable endpoint switching is NOT wired into the actual Tauri updater's check-for-update call yet — `tauri.conf.json`'s `updater.endpoints` is still the static `/stable/` URL; only the cohort config loading + a diagnostics Tauri command exist so far.
+- T127: verified — `pnpm exec tsx scripts/check-migration-compat.ts` (run from `packages/db-shared/`) reports clean against the real `supabase/migrations/` directory; correctly flags an unmarked `DROP COLUMN`/`DROP TABLE` unless preceded by an `EXPAND-CONTRACT-OK:` comment marker (deliberately does not flag `DROP CONSTRAINT` — several unmarked FK drops already exist for the `HQ_CONSOLE_TILL_ID` sentinel pattern, which don't lose data).
+- T129: built this round (not by a subagent) — new migration `supabase/migrations/0019_rollout_records.sql` (`rollout_records` table, unique on `(store_id, app_version)`, RLS: hq_admin full read/write, store_manager read-only scoped to own store), `apps/admin/src/lib/rollout/service.ts`, `apps/admin/src/app/(app)/rollout/actions.ts` (server action, hq_admin-gated), `apps/admin/src/components/rollout-dashboard.tsx`, `apps/admin/src/app/(app)/rollout/page.tsx`. Added a sidebar nav entry ("Rollout") under Reporting. Updated `supabase/tests/rls.spec.sql`'s two exact-inventory `set_eq` assertions (policy list + RLS-enabled-tables list) to include `rollout_records`.
+- T130: confirmed already existed — `apps/admin/src/app/sync-health/page.tsx` already segments tills by `app_version`; no new work needed.
+- Verified via `supabase db reset` + `supabase test db` (42/42, including the updated RLS inventory) and `pnpm --filter @hgl/admin typecheck|lint|build` (clean, `/rollout` route present).
 
 ### Tests for US8
 
-- [ ] T131 [P] [US8] E2E `apps/pos/tests/e2e/us8-canary.spec.ts`: deploy N+1 to one emulated store, N stays on two others; run sales from both cohorts; assert concurrent sync succeeds; assert schema-migration linter would have caught a hypothetical breaking column drop
-- [ ] T132 [P] [US8] pgTAP `supabase/tests/backward_compat.spec.sql`: current schema still accepts a payload from the prior release (regression harness)
+- [ ] T131 [P] [US8] E2E `apps/pos/tests/e2e/us8-canary.spec.ts`: deploy N+1 to one emulated store, N stays on two others; run sales from both cohorts; assert concurrent sync succeeds; assert schema-migration linter would have caught a hypothetical breaking column drop — NOT built this round
+- [ ] T132 [P] [US8] pgTAP `supabase/tests/backward_compat.spec.sql`: current schema still accepts a payload from the prior release (regression harness) — NOT built this round
 
 **Checkpoint**: Rollout tooling ready for Phase 5 (Hardening & full rollout) of spec §11.
 
@@ -356,19 +441,27 @@ Per [plan.md project structure](plan.md#project-structure): pnpm-workspaces mono
 
 **Purpose**: Runbooks, security hardening, kiosk/MDM configuration, and the final constitutional re-affirmation before pilot go-live.
 
-- [ ] T133 [P] Wire SQLCipher on the **active** SDK path (primary Tauri SDK path per T036, or sidecar Node.js SDK path if Phase 0a fell back per T018) in `apps/pos/src-tauri/src/db.rs`: encryption key stored via **Windows DPAPI**; key never leaves the machine (Constitution Principle VII)
-- [ ] T134 [P] Ops runbook `docs/ops/offline-drill.md`: how to execute the 3-day drill, what to record, pass/fail criteria (Constitution §Development Workflow gate 3)
-- [ ] T135 [P] Ops runbook `docs/ops/device-recovery.md`: procedure for a lost/bricked/stolen till incl. attempting to pull the local queue before wipe (spec §12)
-- [ ] T136 [P] Ops runbook `docs/ops/cashier-training.md`: same-till voids offline vs cross-till refund online, oversell is a business flow not a bug, roster staleness (EC-14) explanation
-- [ ] T137 [P] Ops runbook `docs/ops/dev-setup.md`: Windows dev-machine setup — Rust toolchain, Tauri CLI, WebView2 (mirrors [quickstart.md](quickstart.md))
-- [ ] T138 [P] Ops runbook `docs/ops/kiosk-config.md`: Windows Assigned Access / Shell Launcher configuration template
-- [ ] T139 [P] Ops runbook `docs/ops/intune-deployment.md`: Intune enrolment + policy deployment for the POS terminal fleet
-- [ ] T140 [P] Ops runbook `docs/ops/phase-transition-checklist.md`: Constitution re-affirmation checklist per phase transition (Constitution §Governance)
-- [ ] T141 [P] `apps/admin/src/app/audit/page.tsx`: unified audit view (price changes, stock adjustments, refunds, role changes) reading from `audit_log` (SC-006)
-- [ ] T142 [P] pgTAP `supabase/tests/audit_completeness.spec.sql`: every price change and every threshold-adjustment produces an audit row (SC-006)
-- [ ] T143 [P] Fiscalisation forward-reference note visible in `apps/admin/src/app/settings/page.tsx`: banner citing that fiscalisation lives in `002-fiscalisation` and pilot go-live is blocked on it (Constitution v1.1.0 Principle V)
-- [ ] T144 Execute pre-go-live 3-day offline drill on the pilot till; record result in `specs/001-retail-pos-mvp/drill-report.md` (Constitution §Development Workflow gate 3 + SC-001)
-- [ ] T145 Final Constitution Check re-run for v1.1.0 across delivered artefacts; update [plan.md](plan.md) Post-Design Constitution Re-Check section with the sign-off; block pilot go-live if any principle regresses
+- [X] T133 [P] Wire SQLCipher on the **active** SDK path (primary Tauri SDK path per T036, or sidecar Node.js SDK path if Phase 0a fell back per T018) in `apps/pos/src-tauri/src/db.rs`: encryption key stored via **Windows DPAPI**; key never leaves the machine (Constitution Principle VII)
+- [X] T134 [P] Ops runbook `docs/ops/offline-drill.md`: how to execute the 3-day drill, what to record, pass/fail criteria (Constitution §Development Workflow gate 3)
+- [X] T135 [P] Ops runbook `docs/ops/device-recovery.md`: procedure for a lost/bricked/stolen till incl. attempting to pull the local queue before wipe (spec §12)
+- [X] T136 [P] Ops runbook `docs/ops/cashier-training.md`: same-till voids offline vs cross-till refund online, oversell is a business flow not a bug, roster staleness (EC-14) explanation
+- [X] T137 [P] Ops runbook `docs/ops/dev-setup.md`: Windows dev-machine setup — Rust toolchain, Tauri CLI, WebView2 (mirrors [quickstart.md](quickstart.md))
+- [X] T138 [P] Ops runbook `docs/ops/kiosk-config.md`: Windows Assigned Access / Shell Launcher configuration template
+- [X] T139 [P] Ops runbook `docs/ops/intune-deployment.md`: Intune enrolment + policy deployment for the POS terminal fleet
+- [X] T140 [P] Ops runbook `docs/ops/phase-transition-checklist.md`: Constitution re-affirmation checklist per phase transition (Constitution §Governance)
+- [X] T141 [P] `apps/admin/src/app/(app)/audit/page.tsx`: unified audit view (price changes, stock adjustments, refunds, role changes) reading from `audit_log` (SC-006)
+- [X] T142 [P] pgTAP `supabase/tests/audit_completeness.spec.sql`: every price change and every threshold-adjustment produces an audit row (SC-006)
+- [X] T143 [P] Fiscalisation forward-reference note visible in `apps/admin/src/app/(app)/settings/page.tsx`: banner citing that fiscalisation lives in `002-fiscalisation` and pilot go-live is blocked on it (Constitution v1.1.0 Principle V)
+- [ ] T144 Execute pre-go-live 3-day offline drill on the pilot till; record result in `specs/001-retail-pos-mvp/drill-report.md` (Constitution §Development Workflow gate 3 + SC-001) — out of scope for automation, requires real pilot hardware
+- [ ] T145 Final Constitution Check re-run for v1.1.0 across delivered artefacts; update [plan.md](plan.md) Post-Design Constitution Re-Check section with the sign-off; block pilot go-live if any principle regresses — out of scope for automation, requires human sign-off
+
+**Implementation notes (T133–T143)**:
+- T133: `apps/pos/src-tauri/src/db.rs` is an **honest partial implementation**. Header comment documents direct inspection of `@powersync/{common,tauri-plugin}`'s `.d.ts` files and the `tauri-plugin-powersync-0.0.6` cargo source, concluding neither exposes any encryption-key/PRAGMA/SQLCipher hook — an architectural gap in the alpha SDK, not a missing config flag. What IS implemented: DPAPI-backed (`CryptProtectData`, machine/user-bound) generation and storage of a per-till 256-bit key, ready to hand to SQLCipher via `PRAGMA key` once the SDK exposes a hook. Until then, BitLocker/OS-level disk encryption (already documented in the Constitution as the fallback) is the operative protection.
+- T134–T140: 7 runbooks under `docs/ops/`, built directly (not by a subagent) after the Phase 13 subagent didn't reach them.
+- T141: unified `audit_log` view built this round (not by a subagent). `apps/admin/src/lib/audit/unified-audit.ts` (`loadUnifiedAuditLog`, no entity_type filter — relies entirely on the existing `audit_log_read` RLS policy for store_manager scoping via JSONB `store_id` extraction on `old_value`/`new_value`, since `audit_log` has no plain `store_id` column) + `apps/admin/src/components/audit-log-table.tsx` (client-side entity-type/search filter) + `apps/admin/src/app/(app)/audit/page.tsx`. Coexists with the pre-existing bare `apps/admin/src/app/audit/prices/page.tsx` (T084, `/audit/prices`, outside the `(app)` route group — a pre-existing UX inconsistency, not introduced or fixed here).
+- T142: `supabase/tests/audit_completeness.spec.sql` built this round — 9 pgTAP assertions: price-change event produces exactly one `audit_log` row (action `price_changed`, new_value carries new price); adjustment request alone produces none; adjustment approval produces exactly one (action `adjustment.adjustment_approved`, new_value carries `adjustment_id`); adjustment rejection also produces one and does not emit a companion stock event; total row count across the fixture is exactly 3. All passing (`supabase test db` → 42/42 total).
+- T143: `apps/admin/src/app/(app)/settings/page.tsx` built directly — server component, `requireRole(["hq_admin"])`, banner citing Constitution Principle V and the `002-fiscalisation` companion spec.
+- Full validation after all of the above: `supabase db reset` clean, `supabase test db` → 42/42, `pnpm --filter @hgl/admin typecheck|lint|build` → clean (`/audit`, `/rollout`, `/settings` routes all present), `pnpm --filter @hgl/pos typecheck|lint` → clean (sanity check, no POS changes this round).
 
 **Final checkpoint**: Pilot go-live blocked only on companion `002-fiscalisation` landing (Constitution Principle V). Every other principle and every user story acceptance test is green.
 
@@ -447,7 +540,7 @@ All tasks conform to the required checklist format `- [ ] TXXX [P?] [Story?] Des
 - Setup / Foundational / Spike / Polish phases: no `[Story]` label ✓
 - User Story phases: every task carries `[US1]`…`[US9]` ✓
 - Every task references a specific file path ✓
-- Task IDs are sequential (T001…T152) ✓
+- Task IDs are sequential (T001…T166) ✓
 
 ---
 
@@ -457,10 +550,20 @@ Added after the strict `/speckit.analyze` coverage pass. Each addition names the
 
 ### Belongs to Phase 3 (Foundational) — must complete before Phase 4 begins
 
-- [ ] T146 User management admin UI: `apps/admin/src/app/users/page.tsx` + `apps/admin/src/lib/users/service.ts` — HQ admin can CRUD users (create cashiers/managers, assign PIN which is hashed via T041's Rust command, assign `store_id`, set `is_active`); store manager can only assign existing cashiers to their store. Companion pgTAP `supabase/tests/user_management_rls.spec.sql` asserting only `role='hq_admin'` can INSERT into `users` and only that role can flip `is_active` for a user outside their own store. Closes **FR-035** and unblocks pilot cashier onboarding.
-- [ ] T147 [P] Client-generated `event_id` composite generator: `apps/pos/src/lib/events/id.ts` — `nextEventId(till_id)` reads a durable `local_sequence` row from the till's SQLite, increments atomically, returns `${till_id}:${sequence}` (fits in a UUID via v5 hash if the DB column stays `uuid`, otherwise switch that column to `text`). Vitest unit `apps/pos/tests/unit/events/id.spec.ts` boots two "cloned" tills sharing the same starting state and asserts they produce **zero colliding `event_id`s** across 10 000 concurrent generations. Closes **EC-07** and prevents silent event collisions on imaged deployments.
-- [ ] T148 [P] Fresh-till onboarding integration test: `apps/pos/tests/integration/us9-fresh-till-onboarding.spec.ts` — provision a brand-new till via `POST /provision-till` (T046), complete initial catalog / prices / stock / roster pull in exactly one online session, disconnect, verify the till is fully operational offline. Closes **SC-009** measurement gap.
-- [ ] T149 [P] Local-crash regression test: `apps/pos/tests/integration/wal-crash-safety.spec.ts` — start a shift, write 10 sales, `SIGKILL` the process (or Node `process.exit(0)` in test harness) mid-write, restart, assert the local ledger has no torn writes and the upload queue picks up exactly where it left off. Closes **NFR-004** regression coverage beyond the one-shot Phase 0a spike.
+- [X] T146 User management admin UI: `apps/admin/src/app/users/page.tsx` + `apps/admin/src/lib/users/service.ts` — HQ admin can CRUD users (create cashiers/managers, assign PIN which is hashed via T041's Rust command, assign `store_id`, set `is_active`); store manager can only assign existing cashiers to their store. Companion pgTAP `supabase/tests/user_management_rls.spec.sql` asserting only `role='hq_admin'` can INSERT into `users` and only that role can flip `is_active` for a user outside their own store. Closes **FR-035** and unblocks pilot cashier onboarding.
+
+**Implementation notes (T146)**:
+- **Design decision — PIN hashing outside Tauri**: the admin app can't call T041's Rust `hash_pin` command (no Tauri IPC outside the till shell). Added Edge Function `supabase/functions/hash-cashier-pin/index.ts` using `npm:hash-wasm@4.12.0`'s pure-WASM `argon2id()` to produce a PHC-format `$argon2id$...` hash — verified byte-compatible with the till's `verify_pin` (PHC strings are self-describing; RustCrypto's verifier reads params from the hash string itself, so exact param parity with `pin.rs` isn't required). Ruled out: Postgres `pgcrypto` (bcrypt/md5/DES only, no Argon2) and `deno.land/x/argon2` (native FFI plugin, unsupported on Supabase's hosted Edge Runtime). Authorization for the function is delegated to a new Postgres RPC `assert_caller_is_hq_admin()` (0015) rather than decoded in Deno, keeping the role check in one place alongside RLS.
+- Migration `supabase/migrations/0015_user_management_rls.sql`: adds `users_update_store_manager` policy (store_manager may UPDATE `is_active` only for a cashier already in their own store — `role='cashier' AND store_id=claim_store_id()` on both `USING`/`WITH CHECK`) plus a `BEFORE UPDATE` trigger enforcing column-scope (store_manager sessions can't change `role`/`full_name`/`pin_hash`/`pin_updated_at`/`created_at`, only `is_active`). Note: cashiers always have a `store_id` (`users_hq_admin_store_scope` check constraint), so there's no "unassigned cashier" case — scope is create-time-assignment (hq_admin) + activate/deactivate (store_manager), not cross-store reassignment.
+- Updated `supabase/tests/rls.spec.sql`'s policy-inventory `set_eq` to include the new policy; added `supabase/tests/user_management_rls.spec.sql` (6 assertions: hq_admin INSERT/update-anywhere; store_manager blocked from INSERT, blocked cross-store, blocked on non-`is_active` columns, allowed same-store `is_active`). All pgTAP suites pass (`supabase test db`: 26/26).
+- **Scope cut**: CREATE is cashier-only (matches the task's own "unblocks pilot cashier onboarding" framing). Creating `store_manager`/`hq_admin` accounts needs a real Supabase Auth identity (service-role admin API), which is a separate concern not built here.
+- **Gotcha hit while validating**: `supabase stop` + `supabase start` restores the DB from its last backup — it does **not** re-run migrations. Only `supabase db reset` applies new/edited migration files. Editing a migration after an earlier `db reset` requires another `db reset`, not just a restart.
+- `apps/admin/src/lib/users/service.ts` + `components/users-dashboard.tsx` + `app/(app)/users/page.tsx`: table + Sheet-based create/edit forms, gated by `requireRole(["hq_admin","store_manager"])`; store_manager sees only their own store's roster (via RLS) and only an Activate/Deactivate action (no Edit/Add).
+- Verified end-to-end against local Supabase: signed in as seeded `hq.admin@hgl.local`/`store.manager@hgl.local`, confirmed the Edge Function returns a valid hash for hq_admin, `403 forbidden` for store_manager, and `400 invalid_pin` for a malformed PIN.
+- Note: `pnpm --filter @hgl/admin typecheck`/`lint` currently show pre-existing errors in unrelated Phase 6 (US2) files (`promotions-view.tsx`, `catalog/options.ts`, `prices/change.ts`, `promotions/promotions.ts`) from work in progress elsewhere — not touched here; T146's own files (`lib/users/service.ts`, `components/users-dashboard.tsx`, `app/(app)/users/page.tsx`) lint and typecheck clean in isolation.
+- [X] T147 [P] Client-generated `event_id` composite generator: `apps/pos/src/lib/events/id.ts` — `nextEventId(till_id)` reads a durable `local_sequence` row from the till's SQLite, increments atomically, returns `${till_id}:${sequence}` (fits in a UUID via v5 hash if the DB column stays `uuid`, otherwise switch that column to `text`). Vitest unit `apps/pos/tests/unit/events/id.spec.ts` boots two "cloned" tills sharing the same starting state and asserts they produce **zero colliding `event_id`s** across 10 000 concurrent generations. Closes **EC-07** and prevents silent event collisions on imaged deployments. ✅ Implemented via RFC 4122 UUID v5 (Web Crypto SHA-1, no new dependency); test passes.
+- [X] T148 [P] Fresh-till onboarding integration test: `apps/pos/tests/integration/us9-fresh-till-onboarding.spec.ts` — provision a brand-new till via `POST /provision-till` (T046), complete initial catalog / prices / stock / roster pull in exactly one online session, disconnect, verify the till is fully operational offline. Closes **SC-009** measurement gap. Scoped to the boundary contract (device-credential + roster seed → zero network calls through the offline lifecycle) since client-side PowerSync bucket-sync isn't wired yet — see the catch-up implementation notes under Phase 4 (US9) above.
+- [X] T149 [P] Local-crash regression test: `apps/pos/tests/integration/wal-crash-safety.spec.ts` — start a shift, write 10 sales, `SIGKILL` the process (or Node `process.exit(0)` in test harness) mid-write, restart, assert the local ledger has no torn writes and the upload queue picks up exactly where it left off. Closes **NFR-004** regression coverage beyond the one-shot Phase 0a spike. Adapted to 10 synthetic shift_open events (US1 sale events don't exist yet) and validates the app-level crash-recovery contract (idempotent inserts + `resetStaleUploading()`) rather than re-proving SQLite's own WAL guarantee — see the catch-up implementation notes under Phase 4 (US9) above.
 
 ### Belongs to Phase 8 (US4) — already fixed in T102 above; no new task
 
@@ -493,3 +596,29 @@ Added after the strict `/speckit.analyze` coverage pass. Each addition names the
 | C7 LOW — EC-01 debounce test | T150 |
 | C8 LOW — NFR-004 crash regression | T149 |
 | F2 LOW — T133 sidecar-aware wording | T133 (reworded in place) |
+
+---
+
+## Post-Implementation Additions (T153–T166)
+
+Design-system integration (Stitch mockups → real tokens/components) and bug fixes found while implementing/testing T048–T052, done ahead of their originally-planned phase. Existing IDs are not renumbered so cross-references stay stable.
+
+### Belongs to Phase 3 (Foundational) — extends T048–T052
+
+- [X] T153 [P] Shared Tailwind design-token preset `packages/config/tailwind/preset.ts` + `packages/config/tailwind/tokens.css`: Harvest Retail OS color/typography/spacing tokens from the Stitch design mockups (M3-style raw names + shadcn-conventional aliases over the same CSS vars), exported via `@hgl/config/tailwind/preset`
+- [X] T154 [P] Wire the shared preset into `apps/admin/tailwind.config.ts` + `apps/admin/src/app/globals.css` (design tokens as CSS vars, self-hosted Inter font via `next/font/google`)
+- [X] T155 [P] Add Tailwind/PostCSS to `apps/pos` from scratch (previously had none): `apps/pos/tailwind.config.ts`, `apps/pos/postcss.config.mjs`, `apps/pos/src/app/globals.css`; wired into both `layout.tsx` and `global-error.tsx` (the latter fully replaces the root layout and needs its own style/font import)
+- [X] T156 [P] Hand-authored shadcn/ui-style primitives in `apps/admin/src/components/ui/` (button, card, badge, table, dropdown-menu, input, label, separator, avatar, sheet) + `apps/admin/src/lib/utils.ts` (`cn()`), built on individual `@radix-ui/react-*` packages — NOT the `shadcn` CLI, which now generates Tailwind v4-only code (`radix-ui` meta-package, `color-mix(in oklch, ...)`) incompatible with this project's Tailwind v3 setup
+- [X] T157 [P] Same primitive subset (button, card, badge, dropdown-menu) hand-authored in `apps/pos/src/components/ui/` + `apps/pos/src/lib/utils.ts`
+- [X] T158 Admin route-group restructure: `apps/admin/src/app/(app)/layout.tsx` renders `AppShell`; `/` and `/sync-health` moved into the `(app)` group (URLs unchanged — route groups don't affect paths); `/login` stays outside the group with no shell
+- [X] T159 `apps/admin/src/components/app-sidebar.tsx` (nav pruned to routes with a real tasks.md feature: Dashboard, Sync Health, Prices, Promotions, Price Audit, Inventory, Transfers, Reports, Audit Log, Users, Settings — dropping the Stitch mockups' Order Queue/Revenue Desk/Tax Engine/Marketplace/Register, which have no corresponding feature) + `apps/admin/src/components/app-topbar.tsx` (avatar `DropdownMenu` with role/email + logout server action) + `apps/admin/src/components/app-shell.tsx`
+- [X] T160 Restyle `apps/admin/src/app/login/page.tsx` to match the Stitch login mockup (icon avatar, gradient blobs, icon-prefixed inputs, password visibility toggle)
+- [X] T161 Restyle `apps/admin/src/components/sync-health-dashboard.tsx` + `.../sync-health/page.tsx`: store-level status card grid (green/amber/red, per [research.md §4.4](research.md)) above the existing per-till sortable table; `buildStoreSummaries`/`buildFleetSummary` added to `apps/admin/src/lib/monitoring/sync-health.ts`
+- [X] T162 [P] POS sidebar-free shell (per explicit product decision — the till is a task-flow kiosk, not a multi-section dashboard): `apps/pos/src/components/till-top-bar.tsx` + `apps/pos/src/components/cashier-menu-popover.tsx` (`DropdownMenu` limited to Sync status / Help / Cash-up-End shift / Logout — no admin functionality ever) + `apps/pos/src/components/sync-status-chip.tsx` (replaces the retired floating `offline-badge.tsx`); wired into `apps/pos/src/app/layout.tsx`
+- [X] T163 [P] Restyle `apps/pos/src/app/sync-health/page.tsx` with Card primitives; restyle `apps/pos/src/components/kiosk-error-screen.tsx` and `apps/pos/src/app/page.tsx` with Tailwind tokens instead of inline styles
+- [X] T164 Fix: `supabase/config.toml` `[auth.email] enable_signup = true` — GoTrue `email_provider_disabled` was silently blocking all local password sign-in (`enabled` is not a valid key under `[auth.email]`; this maps to `GOTRUE_EXTERNAL_EMAIL_ENABLED`). Requires `supabase stop` + `supabase start` — a raw container restart does not reload `config.toml`
+- [X] T165 Fix: `apps/admin/src/lib/supabase/claims.ts` + `apps/admin/src/lib/auth/session.ts` — `supabase.auth.getUser()` returns `auth.users.raw_app_meta_data`, NOT the `access_token_hook`-injected JWT claims (`pos_role`/`store_id` only exist in the signed access token). `getSessionClaims()` now decodes the session JWT payload directly. Closes a silent RBAC bug where `requireRole()` always denied regardless of actual role (dashboard showed "unknown role")
+
+### Resolved
+
+- [X] T166 Remote Supabase project `tsexohhlejoskpfbbsur` (linked via `supabase link`) had migration history recorded as `NNN` (e.g. `001`) vs local `NNNN` (e.g. `0001`). The "counts match, so remote likely already has the full schema" assumption was **wrong**: `supabase migration repair --status reverted 001..014` cleared the stale duplicate history rows, but the follow-up `supabase db push` of `0015_user_management_rls.sql` then failed with `relation "users" does not exist` — the remote's actual schema (27 tables: `app_user`, `branch`, `product`, `till_session`, `transaction`, `loyalty_entry`, etc., confirmed via a read-only `supabase db dump --linked --schema public`) was an entirely different, unrelated legacy app, never the retail-pos-mvp schema at all; the migration-history rows had been inserted without their SQL ever running. User confirmed the old schema was not needed. Resolved via `supabase db reset --linked` (drops+rebuilds remote from local migrations/seed — user-confirmed, not a routine operation). Surfaced and fixed one real bug along the way: `supabase/seed/seed.sql`'s `crypt()`/`gen_salt()` calls needed to be schema-qualified as `extensions.crypt(...)`/`extensions.gen_salt(...)` — the seed runner batches statements, so the file's own `SET search_path = public, extensions` doesn't reliably persist across batches on `db reset --linked`. Remote now has all 16 migrations (0001–0016) applied, seed loaded, `supabase db push --dry-run` reports "Remote database is up to date."

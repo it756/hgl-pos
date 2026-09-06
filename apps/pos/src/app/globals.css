@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Harvest Retail OS design tokens — keep in sync with packages/config/tailwind/tokens.css */
+:root {
+  --color-primary: 77 65 223;
+  --color-on-primary: 255 255 255;
+  --color-primary-container: 103 93 249;
+  --color-on-primary-container: 255 251 255;
+  --color-inverse-primary: 196 192 255;
+  --color-primary-fixed: 227 223 255;
+  --color-primary-fixed-dim: 196 192 255;
+  --color-on-primary-fixed: 16 0 105;
+  --color-on-primary-fixed-variant: 54 34 202;
+  --color-surface-tint: 79 68 226;
+
+  --color-secondary: 93 94 96;
+  --color-on-secondary: 255 255 255;
+  --color-secondary-container: 223 223 225;
+  --color-on-secondary-container: 97 99 101;
+  --color-secondary-fixed: 226 226 228;
+  --color-secondary-fixed-dim: 198 198 200;
+  --color-on-secondary-fixed: 26 28 29;
+  --color-on-secondary-fixed-variant: 69 71 73;
+
+  --color-tertiary: 90 92 92;
+  --color-on-tertiary: 255 255 255;
+  --color-tertiary-container: 115 117 117;
+  --color-on-tertiary-container: 252 252 252;
+  --color-tertiary-fixed: 226 226 226;
+  --color-tertiary-fixed-dim: 198 198 199;
+  --color-on-tertiary-fixed: 26 28 28;
+  --color-on-tertiary-fixed-variant: 69 71 71;
+
+  --color-error: 186 26 26;
+  --color-on-error: 255 255 255;
+  --color-error-container: 255 218 214;
+  --color-on-error-container: 147 0 10;
+
+  --color-surface: 249 249 255;
+  --color-on-surface: 21 28 39;
+  --color-on-surface-variant: 70 69 85;
+  --color-surface-variant: 220 226 243;
+  --color-surface-dim: 211 218 234;
+  --color-surface-bright: 249 249 255;
+  --color-surface-container-lowest: 255 255 255;
+  --color-surface-container-low: 240 243 255;
+  --color-surface-container: 231 238 254;
+  --color-surface-container-high: 226 232 248;
+  --color-surface-container-highest: 220 226 243;
+  --color-inverse-surface: 42 49 61;
+  --color-inverse-on-surface: 235 241 255;
+
+  --color-outline: 119 117 135;
+  --color-outline-variant: 199 196 216;
+  --color-background: 249 249 255;
+  --color-on-background: 21 28 39;
+
+  --radius: 0.5rem;
+}
+
+body {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}

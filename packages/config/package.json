@@ -9,16 +9,20 @@
     "./tsconfig/react.json": "./tsconfig/react.json",
     "./tsconfig/node.json": "./tsconfig/node.json",
     "./eslint": "./eslint/index.mjs",
-    "./prettier": "./prettier/index.mjs"
+    "./prettier": "./prettier/index.mjs",
+    "./tailwind/preset": "./tailwind/preset.ts",
+    "./tailwind/tokens.css": "./tailwind/tokens.css"
   },
   "files": [
     "tsconfig",
     "eslint",
-    "prettier"
+    "prettier",
+    "tailwind"
   ],
   "peerDependencies": {
     "eslint": "^9.0.0",
     "prettier": "^3.0.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "tailwindcss": "^3.4.0"
   }
 }

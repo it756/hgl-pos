@@ -1941,6 +1941,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-powersync",
  "tauri-plugin-updater",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

@@ -51,6 +51,7 @@ create policy users_read_store_scope on users for select
     auth.claim_role() = 'hq_admin'
     or (auth.claim_role() = 'store_manager' and store_id = auth.claim_store_id())
     or (auth.claim_role() = 'cashier' and store_id = auth.claim_store_id())
+    or (auth.claim_role() = 'device' and store_id = auth.claim_store_id() and role = 'cashier' and is_active)
     or user_id = auth.claim_user_id()
   );
 create policy users_write_hq on users for all

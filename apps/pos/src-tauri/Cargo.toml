@@ -28,8 +28,18 @@ argon2 = "0.5"
 rand_core = { version = "0.6", features = ["std"] }
 
 # SQLCipher wiring for the on-till SQLite DB (T133).
-# rusqlite is not enabled by default; PowerSync Tauri SDK owns the connection.
-# This dep is a placeholder until T133 wires the encryption key via DPAPI.
+# rusqlite is NOT enabled: the PowerSync Tauri SDK owns the SQLite connection
+# and exposes no encryption-key/PRAGMA hook (verified against the installed
+# @powersync/tauri-plugin 0.0.6 + tauri-plugin-powersync 0.0.6 — see
+# src/db.rs module doc for details). windows-sys below only backs the DPAPI
+# key-management half of T133 (key generation + at-rest protection), which
+# is independent of the SQLCipher-on-connection gap.
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+  "Win32_Foundation",
+  "Win32_Security_Cryptography",
+] }
 
 [features]
 default = ["custom-protocol"]
