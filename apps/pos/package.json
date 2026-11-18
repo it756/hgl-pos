@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "test:e2e": "wdio run wdio.conf.ts",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "seed:local-till": "node scripts/seed-local-till.mjs"
   },
   "dependencies": {
     "@hgl/contracts": "workspace:*",

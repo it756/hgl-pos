@@ -9,22 +9,25 @@ class FakeLocalSequenceDb implements IDb {
 
   async init(): Promise<void> {}
 
-  async query<Row extends Record<string, unknown>>(sql: string, parameters: SqlParameters = []): Promise<Row[]> {
+  async query<Row extends Record<string, unknown>>(sql: string): Promise<Row[]> {
+    throw new Error(`FakeLocalSequenceDb: unsupported query: ${sql}`);
+  }
+
+  async insert<Row extends Record<string, unknown> = Record<string, unknown>>(
+    sql: string,
+    parameters: SqlParameters = [],
+  ): Promise<Row[]> {
+    if (sql.includes("CREATE TABLE")) return [];
+    if (sql.includes("INSERT INTO local_event_sequence")) {
+      const tillId = String(parameters[0]);
+      if (!this.#sequenceByTill.has(tillId)) this.#sequenceByTill.set(tillId, 0);
+      return [];
+    }
     if (sql.includes("UPDATE local_event_sequence")) {
       const tillId = String(parameters[0]);
       const next = (this.#sequenceByTill.get(tillId) ?? 0) + 1;
       this.#sequenceByTill.set(tillId, next);
       return [{ next_seq: next } as unknown as Row];
-    }
-    throw new Error(`FakeLocalSequenceDb: unsupported query: ${sql}`);
-  }
-
-  async insert(sql: string, parameters: SqlParameters = []): Promise<void> {
-    if (sql.includes("CREATE TABLE")) return;
-    if (sql.includes("INSERT INTO local_event_sequence")) {
-      const tillId = String(parameters[0]);
-      if (!this.#sequenceByTill.has(tillId)) this.#sequenceByTill.set(tillId, 0);
-      return;
     }
     throw new Error(`FakeLocalSequenceDb: unsupported insert: ${sql}`);
   }

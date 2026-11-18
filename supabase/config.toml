@@ -66,5 +66,11 @@ enabled = true
 policy = "oneshot"
 inspector_port = 8083
 
+# Public, unauthenticated: just returns wall-clock time for ReliableClock
+# (apps/pos/src/lib/time/clock.ts) — needed before any till session/device
+# credential exists, and reveals nothing sensitive.
+[functions.server-time]
+verify_jwt = false
+
 [analytics]
 enabled = false

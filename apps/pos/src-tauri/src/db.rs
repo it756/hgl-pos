@@ -36,6 +36,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use rand_core::{OsRng, RngCore};
+use tauri::Manager;
 
 const KEY_FILE_NAME: &str = "db-encryption-key.dpapi";
 const KEY_LEN_BYTES: usize = 32;
@@ -57,11 +58,11 @@ fn hex_encode(bytes: &[u8]) -> String {
 mod dpapi {
     use windows_sys::Win32::Foundation::LocalFree;
     use windows_sys::Win32::Security::Cryptography::{
-        CryptProtectData, CryptUnprotectData, CRYPTOAPI_BLOB, CRYPTPROTECT_UI_FORBIDDEN,
+        CryptProtectData, CryptUnprotectData, CRYPTPROTECT_UI_FORBIDDEN, CRYPT_INTEGER_BLOB,
     };
 
-    unsafe fn blob(bytes: &mut [u8]) -> CRYPTOAPI_BLOB {
-        CRYPTOAPI_BLOB {
+    unsafe fn blob(bytes: &mut [u8]) -> CRYPT_INTEGER_BLOB {
+        CRYPT_INTEGER_BLOB {
             cbData: bytes.len() as u32,
             pbData: bytes.as_mut_ptr(),
         }
@@ -74,7 +75,7 @@ mod dpapi {
     pub fn protect(mut plaintext: Vec<u8>) -> Result<Vec<u8>, String> {
         unsafe {
             let input = blob(&mut plaintext);
-            let mut output: CRYPTOAPI_BLOB = std::mem::zeroed();
+            let mut output: CRYPT_INTEGER_BLOB = std::mem::zeroed();
             let ok = CryptProtectData(
                 &input,
                 std::ptr::null(),
@@ -88,7 +89,7 @@ mod dpapi {
                 return Err("CryptProtectData failed".to_string());
             }
             let result = std::slice::from_raw_parts(output.pbData, output.cbData as usize).to_vec();
-            LocalFree(output.pbData as isize);
+            LocalFree(output.pbData as *mut core::ffi::c_void);
             Ok(result)
         }
     }
@@ -96,7 +97,7 @@ mod dpapi {
     pub fn unprotect(mut ciphertext: Vec<u8>) -> Result<Vec<u8>, String> {
         unsafe {
             let input = blob(&mut ciphertext);
-            let mut output: CRYPTOAPI_BLOB = std::mem::zeroed();
+            let mut output: CRYPT_INTEGER_BLOB = std::mem::zeroed();
             let ok = CryptUnprotectData(
                 &input,
                 std::ptr::null_mut(),
@@ -110,7 +111,7 @@ mod dpapi {
                 return Err("CryptUnprotectData failed".to_string());
             }
             let result = std::slice::from_raw_parts(output.pbData, output.cbData as usize).to_vec();
-            LocalFree(output.pbData as isize);
+            LocalFree(output.pbData as *mut core::ffi::c_void);
             Ok(result)
         }
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { createPriceChange, type PriceChangeFormState } from "../../app/prices/actions";
+import { createPriceChange, type PriceChangeFormState } from "../../app/(app)/prices/actions";
 import type { PriceCatalogRow, SkuOption, StoreOption } from "../../lib/prices/change";
 import type { PriceAuditRow } from "../../lib/audit/price-audit";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";

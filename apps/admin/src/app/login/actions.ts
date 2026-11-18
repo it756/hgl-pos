@@ -20,7 +20,9 @@ export async function signInWithPassword(_prevState: LoginFormState, formData: F
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error !== null) {
-    return { error: "Invalid email or password." };
+    console.log(error)
+    return { error: "Invalid email or password." + (error.message ? ` (${error.message})` : "") };
+  
   }
 
   redirect(redirectTo as Route);

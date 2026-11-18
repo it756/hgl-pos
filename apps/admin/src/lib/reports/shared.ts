@@ -65,13 +65,13 @@ function isStaleForRange(till: TillSyncHealthRow, rangeToTs: string): boolean {
   return till.oldest_pending_event_at !== null && till.oldest_pending_event_at <= rangeToTs;
 }
 
-export async function computeProvisionalMarker(
-  supabase: SupabaseClient,
-  rangeToTs: string,
-  storeId?: string,
-): Promise<ProvisionalMarker> {
-  const overview = await loadSyncHealthOverview(supabase);
-  const relevantTills = storeId === undefined ? overview.tills : overview.tills.filter((till) => till.store_id === storeId);
+// Pure core of the provisional-marker computation (T125 companion unit
+// test: apps/admin/tests/unit/reports/provisional.spec.ts). Split out from
+// computeProvisionalMarker so it can be exercised with plain fixture data
+// and no Supabase/DB mocking — the async wrapper below only adds the
+// network fetch via loadSyncHealthOverview.
+export function deriveProvisionalMarker(tills: readonly TillSyncHealthRow[], rangeToTs: string, storeId?: string): ProvisionalMarker {
+  const relevantTills = storeId === undefined ? tills : tills.filter((till) => till.store_id === storeId);
   const staleTills = relevantTills.filter((till) => isStaleForRange(till, rangeToTs));
 
   if (staleTills.length === 0) {
@@ -89,4 +89,13 @@ export async function computeProvisionalMarker(
     provisionalUntilServerTs: earliestPending ?? null,
     staleTillIds: staleTills.map((till) => till.till_id),
   };
+}
+
+export async function computeProvisionalMarker(
+  supabase: SupabaseClient,
+  rangeToTs: string,
+  storeId?: string,
+): Promise<ProvisionalMarker> {
+  const overview = await loadSyncHealthOverview(supabase);
+  return deriveProvisionalMarker(overview.tills, rangeToTs, storeId);
 }

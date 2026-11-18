@@ -91,4 +91,4 @@ jobs:
       - name: Build Tauri Windows installer (unsigned in CI)
         run: pnpm --filter @hgl/pos tauri:build -- --ci
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ""
+          TAURI_SIGNING_PRIVATE_KEY: "${{ env.TAURI_SIGNING_PRIVATE_KEY }}"

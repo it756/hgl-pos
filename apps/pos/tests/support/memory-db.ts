@@ -31,8 +31,8 @@ export class MemoryDb implements IDb {
     return () => {};
   }
 
-  async insert(sql: string, parameters: SqlParameters = []): Promise<void> {
-    this.#exec(sql, parameters);
+  async insert<R extends Record<string, unknown> = Record<string, unknown>>(sql: string, parameters: SqlParameters = []): Promise<R[]> {
+    return this.#exec(sql, parameters) as unknown as R[];
   }
 
   async query<R extends Record<string, unknown>>(sql: string, parameters: SqlParameters = []): Promise<R[]> {
@@ -179,11 +179,37 @@ export class MemoryDb implements IDb {
 
     const whereMatch = /\sWHERE\s+([\s\S]+)$/i.exec(rest);
     const whereClause = whereMatch?.[1]?.trim();
+    const beforeWhere = whereMatch !== null ? rest.slice(0, whereMatch.index) : rest;
 
     let paramIndex = 0;
     const nextParam: NextParam = () => parameters[paramIndex++] ?? null;
     const conditions = whereClause !== undefined ? resolveConditions(whereClause, nextParam) : [];
     const limitValue = limitToken === null ? null : Number(limitToken === "?" ? nextParam() : limitToken);
+
+    // Single equi-JOIN support (e.g. pricing/lookup.ts's barcode-alias
+    // lookup: `sku_barcodes b JOIN skus s ON s.sku_id = b.sku_id`). This is
+    // NOT a general join engine — only one JOIN, only a plain `a.col = b.col`
+    // ON condition, aliases required in the SELECT/WHERE.
+    const joinMatch = /^\s*(\w+)?\s*JOIN\s+(\w+)\s+(\w+)\s+ON\s+([\s\S]+?)\s*$/i.exec(beforeWhere);
+    if (joinMatch?.[2] !== undefined && joinMatch[3] !== undefined && joinMatch[4] !== undefined) {
+      const primaryAlias = joinMatch[1] ?? tableName;
+      const joinTableName = joinMatch[2];
+      const joinAlias = joinMatch[3];
+      const mergedRows = this.#joinRows(tableName, primaryAlias, joinTableName, joinAlias, joinMatch[4].trim());
+      let joined = mergedRows.filter((row) => rowMatches(row, conditions));
+      if (orderBy !== null) {
+        const orderKeys = orderBy.split(",").map((part) => parseOrderKey(part.trim()));
+        joined = [...joined].sort((a, b) => {
+          for (const key of orderKeys) {
+            const cmp = key(a, b);
+            if (cmp !== 0) return cmp;
+          }
+          return 0;
+        });
+      }
+      if (limitValue !== null) joined = joined.slice(0, limitValue);
+      return joined.map((row) => projectJoinedColumns(row, selectCols));
+    }
 
     const pk = this.#primaryKeys.get(tableName) ?? "id";
     const table = this.#table(tableName, pk);
@@ -228,6 +254,38 @@ export class MemoryDb implements IDb {
     }
     return [];
   }
+
+  #joinRows(
+    primaryTableName: string,
+    primaryAlias: string,
+    joinTableName: string,
+    joinAlias: string,
+    onCondition: string,
+  ): Row[] {
+    const onMatch = /^([\w.]+)\s*=\s*([\w.]+)$/.exec(onCondition);
+    if (onMatch?.[1] === undefined || onMatch[2] === undefined) {
+      throw new Error(`MemoryDb: unsupported JOIN ON condition: ${onCondition}`);
+    }
+    const [leftAlias, leftCol] = splitAliasCol(onMatch[1]);
+    const [rightAlias, rightCol] = splitAliasCol(onMatch[2]);
+
+    const primaryPk = this.#primaryKeys.get(primaryTableName) ?? "id";
+    const primaryRows = Array.from(this.#table(primaryTableName, primaryPk).values());
+    const joinPk = this.#primaryKeys.get(joinTableName) ?? "id";
+    const joinRows = Array.from(this.#table(joinTableName, joinPk).values());
+
+    const merged: Row[] = [];
+    for (const primaryRow of primaryRows) {
+      for (const joinRow of joinRows) {
+        const leftValue = leftAlias === primaryAlias ? primaryRow[leftCol] : joinRow[leftCol];
+        const rightValue = rightAlias === primaryAlias ? primaryRow[rightCol] : joinRow[rightCol];
+        if (leftValue !== undefined && leftValue === rightValue) {
+          merged.push({ ...prefixKeys(primaryRow, primaryAlias), ...prefixKeys(joinRow, joinAlias) });
+        }
+      }
+    }
+    return merged;
+  }
 }
 
 export function createMemoryDb(): MemoryDb {
@@ -235,6 +293,39 @@ export function createMemoryDb(): MemoryDb {
 }
 
 // ---------- Parsing helpers ----------
+
+function splitAliasCol(token: string): [string, string] {
+  const dotIndex = token.indexOf(".");
+  if (dotIndex === -1) throw new Error(`MemoryDb: JOIN ON condition column must be alias-qualified: ${token}`);
+  return [token.slice(0, dotIndex), token.slice(dotIndex + 1)];
+}
+
+function prefixKeys(row: Row, alias: string): Row {
+  const result: Row = {};
+  for (const [key, value] of Object.entries(row)) result[`${alias}.${key}`] = value;
+  return result;
+}
+
+/** Projects a joined (alias-prefixed) row per a SELECT list, stripping alias prefixes back to bare column names. */
+function projectJoinedColumns(mergedRow: Row, selectCols: string): Row {
+  const starMatch = /^(\w+)\.\*$/.exec(selectCols);
+  if (starMatch?.[1] !== undefined) {
+    const prefix = `${starMatch[1]}.`;
+    const result: Row = {};
+    for (const [key, value] of Object.entries(mergedRow)) {
+      if (key.startsWith(prefix)) result[key.slice(prefix.length)] = value;
+    }
+    return result;
+  }
+
+  const result: Row = {};
+  for (const token of splitTopLevel(selectCols).map((c) => c.trim())) {
+    const dotIndex = token.lastIndexOf(".");
+    const bareCol = dotIndex === -1 ? token : token.slice(dotIndex + 1);
+    result[bareCol] = mergedRow[token] ?? null;
+  }
+  return result;
+}
 
 function splitTopLevel(text: string): string[] {
   const parts: string[] = [];
@@ -265,7 +356,7 @@ type OrderComparator = (a: Row, b: Row) => number;
 // `(col IS [NOT] NULL) [ASC|DESC]` idiom used by resolve.ts/promotions.ts to
 // sort store-scoped rows before global/null-scoped ones.
 function parseOrderKey(raw: string): OrderComparator {
-  const nullCheckMatch = /^\((\w+)\s+IS\s+(NOT\s+)?NULL\)\s*(ASC|DESC)?$/i.exec(raw);
+  const nullCheckMatch = /^\(([\w.]+)\s+IS\s+(NOT\s+)?NULL\)\s*(ASC|DESC)?$/i.exec(raw);
   if (nullCheckMatch?.[1] !== undefined) {
     const col = nullCheckMatch[1];
     const negate = nullCheckMatch[2] !== undefined;
@@ -278,7 +369,7 @@ function parseOrderKey(raw: string): OrderComparator {
     };
   }
 
-  const simpleMatch = /^(\w+)\s*(ASC|DESC)?$/i.exec(raw);
+  const simpleMatch = /^([\w.]+)\s*(ASC|DESC)?$/i.exec(raw);
   if (simpleMatch?.[1] === undefined) throw new Error(`MemoryDb: unparseable ORDER BY key: ${raw}`);
   const col = simpleMatch[1];
   const dir = (simpleMatch[2] ?? "ASC").toUpperCase();
@@ -395,18 +486,18 @@ function parseConditionGroup(raw: string, nextParam: NextParam): ResolvedConditi
 }
 
 function parseSingleCondition(condition: string, nextParam: NextParam): ResolvedCondition {
-  const isNullMatch = /^(\w+)\s+IS\s+(NOT\s+)?NULL$/i.exec(condition);
+  const isNullMatch = /^([\w.]+)\s+IS\s+(NOT\s+)?NULL$/i.exec(condition);
   if (isNullMatch?.[1] !== undefined) {
     return { col: isNullMatch[1], op: isNullMatch[2] !== undefined ? "is_not_null" : "is_null" };
   }
 
-  const inMatch = /^(\w+)\s+IN\s*\(([^)]+)\)$/i.exec(condition);
+  const inMatch = /^([\w.]+)\s+IN\s*\(([^)]+)\)$/i.exec(condition);
   if (inMatch?.[1] !== undefined && inMatch[2] !== undefined) {
     const values = splitTopLevel(inMatch[2]).map((token) => resolveValueToken(token.trim(), nextParam));
     return { col: inMatch[1], op: "in", values };
   }
 
-  const opMatch = /^(\w+)\s*(<=|>=|<|>|=)\s*(.+)$/.exec(condition);
+  const opMatch = /^([\w.]+)\s*(<=|>=|<|>|=)\s*(.+)$/.exec(condition);
   if (opMatch?.[1] === undefined || opMatch[2] === undefined || opMatch[3] === undefined) {
     throw new Error(`MemoryDb: unsupported WHERE condition: ${condition}`);
   }

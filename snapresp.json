@@ -1,0 +1,1 @@
+{"error":"insert_failed","detail":"new row violates row-level security policy for table \"sync_health_snapshots\""}

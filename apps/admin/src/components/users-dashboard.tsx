@@ -12,6 +12,8 @@ import {
   type UserRow,
 } from "../lib/users/service";
 import { getSupabaseBrowserClient } from "../lib/supabase/browser";
+import { setStaffActive } from "../app/(app)/users/actions";
+import { EditStaffForm, InviteStaffForm } from "./users/staff-forms";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -23,11 +25,14 @@ export type UsersDashboardProps = {
   users: UserRow[];
   stores: StoreOption[];
   scope: "hq_admin" | "store_manager";
+  currentUserId: string;
 };
+
+type RoleFilter = "all" | "cashier" | "store_manager" | "hq_admin";
 
 const PIN_PATTERN = /^\d{4,8}$/;
 
-export function UsersDashboard({ users, stores, scope }: UsersDashboardProps) {
+export function UsersDashboard({ users, stores, scope, currentUserId }: UsersDashboardProps) {
   const router = useRouter();
   const storeNameById = useMemo(() => new Map(stores.map((store) => [store.store_id, store.name])), [stores]);
 
@@ -35,13 +40,23 @@ export function UsersDashboard({ users, stores, scope }: UsersDashboardProps) {
   const [editUser, setEditUser] = useState<UserRow | null>(null);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [editStaff, setEditStaff] = useState<UserRow | null>(null);
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const visibleUsers = users.filter((user) => roleFilter === "all" || user.role === roleFilter);
 
   async function handleToggleActive(user: UserRow) {
     setPendingUserId(user.user_id);
     setError(null);
     try {
-      const supabase = getSupabaseBrowserClient();
-      await setUserActive(supabase, user.user_id, !user.is_active);
+      if (user.role === "cashier") {
+        const supabase = getSupabaseBrowserClient();
+        await setUserActive(supabase, user.user_id, !user.is_active);
+      } else {
+        // Staff go through a server action so self-deactivation is blocked server-side.
+        const result = await setStaffActive(user.user_id, !user.is_active);
+        if (result.error !== null) throw new Error(result.error);
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -54,6 +69,29 @@ export function UsersDashboard({ users, stores, scope }: UsersDashboardProps) {
     <div className="flex flex-col gap-md">
       <div className="flex items-center justify-between">
         <h1 className="text-headline-lg font-headline-lg font-semibold text-on-surface">Users</h1>
+        <div className="flex items-center gap-sm">
+          <select
+            aria-label="Filter by role"
+            value={roleFilter}
+            onChange={(event) => setRoleFilter(event.target.value as RoleFilter)}
+            className="h-10 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 text-body-md font-body-md text-on-surface"
+          >
+            <option value="all">All roles</option>
+            <option value="cashier">Cashiers</option>
+            <option value="store_manager">Store managers</option>
+            <option value="hq_admin">HQ admins</option>
+          </select>
+          {scope === "hq_admin" && (
+            <Sheet open={inviteOpen} onOpenChange={setInviteOpen}>
+              <SheetTrigger asChild>
+                <Button type="button" variant="outline">
+                  <UserPlus className="h-4 w-4" />
+                  Invite staff
+                </Button>
+              </SheetTrigger>
+              <SheetContent>{inviteOpen && <InviteStaffForm stores={stores} onDone={() => setInviteOpen(false)} />}</SheetContent>
+            </Sheet>
+          )}
         {scope === "hq_admin" && (
           <Sheet open={createOpen} onOpenChange={setCreateOpen}>
             <SheetTrigger asChild>
@@ -74,6 +112,7 @@ export function UsersDashboard({ users, stores, scope }: UsersDashboardProps) {
             </SheetContent>
           </Sheet>
         )}
+        </div>
       </div>
 
       {error !== null && <p className="text-body-md font-body-md text-destructive">{error}</p>}
@@ -90,9 +129,15 @@ export function UsersDashboard({ users, stores, scope }: UsersDashboardProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users.map((user) => (
+          {visibleUsers.map((user) => {
+            const isSelf = user.user_id === currentUserId;
+            const canToggle = !isSelf && (user.role === "cashier" || scope === "hq_admin");
+            return (
             <TableRow key={user.user_id}>
-              <TableCell className="font-medium text-on-surface">{user.full_name}</TableCell>
+              <TableCell className="font-medium text-on-surface">
+                {user.full_name}
+                {isSelf && <span className="ml-2 text-body-sm text-on-surface-variant">(you)</span>}
+              </TableCell>
               <TableCell className="capitalize">{user.role.replace("_", " ")}</TableCell>
               <TableCell>{user.store_id !== null ? (storeNameById.get(user.store_id) ?? user.store_id) : "—"}</TableCell>
               <TableCell>
@@ -105,6 +150,12 @@ export function UsersDashboard({ users, stores, scope }: UsersDashboardProps) {
                     Edit
                   </Button>
                 )}
+                {scope === "hq_admin" && user.role !== "cashier" && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => setEditStaff(user)}>
+                    Edit
+                  </Button>
+                )}
+                {canToggle && (
                 <Button
                   type="button"
                   variant={user.is_active ? "destructive" : "secondary"}
@@ -114,10 +165,12 @@ export function UsersDashboard({ users, stores, scope }: UsersDashboardProps) {
                 >
                   {user.is_active ? "Deactivate" : "Activate"}
                 </Button>
+                )}
               </TableCell>
             </TableRow>
-          ))}
-          {users.length === 0 && (
+            );
+          })}
+          {visibleUsers.length === 0 && (
             <TableRow>
               <TableCell colSpan={6} className="text-center text-on-surface-variant">
                 No users found.
@@ -126,6 +179,20 @@ export function UsersDashboard({ users, stores, scope }: UsersDashboardProps) {
           )}
         </TableBody>
       </Table>
+
+      <Sheet open={editStaff !== null} onOpenChange={(open) => !open && setEditStaff(null)}>
+        <SheetContent>
+          {editStaff !== null && (
+            <EditStaffForm
+              key={editStaff.user_id}
+              user={editStaff}
+              stores={stores}
+              isSelf={editStaff.user_id === currentUserId}
+              onDone={() => setEditStaff(null)}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
 
       <Sheet open={editUser !== null} onOpenChange={(open) => !open && setEditUser(null)}>
         <SheetContent>

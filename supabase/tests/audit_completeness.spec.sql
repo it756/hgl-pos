@@ -124,11 +124,13 @@ select is(
 );
 
 -- Total audit rows for this fixture: 1 price change + 2 adjustment (approve+reject) = 3.
+-- Master-data audit rows from the fixture's own setup inserts (0023's
+-- per-table triggers, entity_type = table name) are excluded.
 select is(
   (select count(*)::int from public.audit_log where entity_id in (
     '36000000-0000-4000-8000-000000000301',
     '36000000-0000-4000-8000-000000000021'
-  )),
+  ) and entity_type not in ('stores', 'skus', 'sku_categories', 'sku_barcodes', 'store_sku_availability', 'users')),
   3,
   'exactly three audit rows exist across price-change and adjustment fixtures'
 );

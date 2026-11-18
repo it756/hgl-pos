@@ -133,6 +133,9 @@ create policy sale_events_read on sale_events for select
     public.claim_role() = 'hq_admin'
     or (public.claim_role() = 'store_manager' and store_id = public.claim_store_id())
     or (public.claim_role() = 'cashier' and till_id = public.claim_till_id())
+    -- Needed for INSERT ... ON CONFLICT DO NOTHING's conflict-visibility check to
+    -- succeed for backlog uploads authenticated as the till device, not a cashier.
+    or (public.claim_role() = 'device' and till_id = public.claim_till_id())
   );
 -- cashier_id is validated as DATA via a BEFORE INSERT trigger (must reference a
 -- cashier at this store), not via auth.claim_user_id() — otherwise offline
@@ -153,6 +156,8 @@ create policy shift_events_read on shift_events for select
     public.claim_role() = 'hq_admin'
     or (public.claim_role() = 'store_manager' and store_id = public.claim_store_id())
     or (public.claim_role() = 'cashier' and till_id = public.claim_till_id())
+    -- Same reason as sale_events_read above.
+    or (public.claim_role() = 'device' and till_id = public.claim_till_id())
   );
 create policy shift_events_insert_by_own_till on shift_events for insert
   with check (
@@ -200,14 +205,19 @@ create policy transfer_events_read on transfer_events for select
   );
 create policy transfer_events_insert_by_manager on transfer_events for insert
   with check (
-    public.claim_role() = 'store_manager'
-    and actor_user_id = public.claim_user_id()
+    actor_user_id = public.claim_user_id()
     and (
-      (event_kind in ('transfer_requested', 'transfer_dispatched')
-        and source_store_id = public.claim_store_id())
-      or
-      (event_kind in ('transfer_received', 'transfer_variance')
-        and destination_store_id = public.claim_store_id())
+      public.claim_role() = 'hq_admin'
+      or (
+        public.claim_role() = 'store_manager'
+        and (
+          (event_kind in ('transfer_requested', 'transfer_dispatched')
+            and source_store_id = public.claim_store_id())
+          or
+          (event_kind in ('transfer_received', 'transfer_variance')
+            and destination_store_id = public.claim_store_id())
+        )
+      )
     )
   );
 

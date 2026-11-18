@@ -25,6 +25,15 @@ export type UploadQueueRow = {
 
 export type SyncUploader = {
   upload(events: AnyTillEvent[]): Promise<void>;
+  /**
+   * Optional per-event upload. When implemented, drainOnce() uses this
+   * instead of upload() so one permanently-failing event (e.g. a duplicate
+   * that will always 409) can't block every other queued event behind it
+   * from ever being marked uploaded — each row gets its own outcome/backoff.
+   * Uploaders that only implement upload() keep today's all-or-nothing
+   * batch behavior unchanged.
+   */
+  uploadOne?(event: AnyTillEvent): Promise<void>;
 };
 
 export type SyncEngineOptions = {
@@ -104,6 +113,10 @@ export class SyncEngine {
     const events = rows.map((row) => AnyTillEventSchema.parse(JSON.parse(row.payload)));
     await this.markUploading(rows, nowIso);
 
+    if (this.#uploader.uploadOne) {
+      return this.#drainPerEvent(rows, events, this.#uploader.uploadOne.bind(this.#uploader));
+    }
+
     try {
       await this.#uploader.upload(events);
       const uploadedAt = this.#now().toISOString();
@@ -119,6 +132,35 @@ export class SyncEngine {
 
       return { attempted: rows.length, uploaded: 0, failed: rows.length, nextAttemptAt };
     }
+  }
+
+  async #drainPerEvent(
+    rows: UploadQueueRow[],
+    events: AnyTillEvent[],
+    uploadOne: (event: AnyTillEvent) => Promise<void>,
+  ): Promise<DrainResult> {
+    let uploaded = 0;
+    let failed = 0;
+    let nextAttemptAt: string | null = null;
+
+    const pairs = rows.map((row, index) => ({ row, event: events[index] }));
+    for (const { row, event } of pairs) {
+      if (event === undefined) continue;
+      try {
+        await uploadOne(event);
+        uploaded += 1;
+        await this.markUploaded([row], this.#now().toISOString());
+      } catch (error) {
+        failed += 1;
+        const retryDelay = calculateBackoffDelayMs(row.attempt_count + 1, this.#random);
+        const rowNextAttemptAt = new Date(this.#now().getTime() + retryDelay).toISOString();
+        nextAttemptAt = nextAttemptAt === null ? rowNextAttemptAt : nextAttemptAt;
+        await this.markFailed([row], rowNextAttemptAt, errorMessage(error));
+      }
+    }
+
+    await this.#pause(BATCH_PAUSE_MS);
+    return { attempted: rows.length, uploaded, failed, nextAttemptAt };
   }
 
   async queueDepth(): Promise<number> {

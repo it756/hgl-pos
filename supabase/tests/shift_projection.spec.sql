@@ -19,8 +19,12 @@ insert into public.tills (till_id, store_id, label, device_identity, device_cred
 insert into public.users (user_id, role, store_id, full_name, pin_hash, pin_updated_at) values
   ('34000000-0000-4000-8000-000000000101', 'cashier', '34000000-0000-4000-8000-000000000001', 'Shift Projection Cashier', 'hash', now());
 
--- shift_close lands first (out of order).
-select public.ingest_shift_event(row(
+-- shift_close lands first (out of order). Inserted directly (not via
+-- ingest_shift_event) because this test exercises the projection TRIGGER's
+-- out-of-order server_ts handling and needs to control server_ts precisely —
+-- the ingest function correctly always assigns server_ts := now() itself
+-- (see device_backlog_ingest.spec.sql), so it can't be used to simulate this.
+insert into public.shift_events (event_id, till_id, store_id, client_ts, server_ts, app_version, schema_ver, shift_id, cashier_id, event_kind, payload) values (
   '34000000-0000-4000-8000-000000000201'::uuid,
   '34000000-0000-4000-8000-000000000011'::uuid,
   '34000000-0000-4000-8000-000000000001'::uuid,
@@ -32,7 +36,7 @@ select public.ingest_shift_event(row(
   '34000000-0000-4000-8000-000000000101'::uuid,
   'shift_close',
   '{"cash_counted": 620.00, "tender_breakdown": {"cash": 620.00}, "notes": null}'::jsonb
-)::public.shift_events);
+);
 
 select is(
   (select status from public.shifts where shift_id = '34000000-0000-4000-8000-000000000301'),
@@ -53,7 +57,7 @@ select is(
 );
 
 -- shift_open lands second, with an earlier server_ts than the close.
-select public.ingest_shift_event(row(
+insert into public.shift_events (event_id, till_id, store_id, client_ts, server_ts, app_version, schema_ver, shift_id, cashier_id, event_kind, payload) values (
   '34000000-0000-4000-8000-000000000202'::uuid,
   '34000000-0000-4000-8000-000000000011'::uuid,
   '34000000-0000-4000-8000-000000000001'::uuid,
@@ -65,7 +69,7 @@ select public.ingest_shift_event(row(
   '34000000-0000-4000-8000-000000000101'::uuid,
   'shift_open',
   '{"opening_float": 100.00}'::jsonb
-)::public.shift_events);
+);
 
 select is(
   (select opening_float from public.shifts where shift_id = '34000000-0000-4000-8000-000000000301'),

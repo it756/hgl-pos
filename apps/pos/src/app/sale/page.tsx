@@ -17,9 +17,13 @@ import { buildMobileMoneyMtnTender } from "../../lib/tenders/mobile-money-mtn";
 import { buildMobileMoneyAirtelTender } from "../../lib/tenders/mobile-money-airtel";
 import { remainingBalance, sumTenderAmounts, type Tender } from "../../lib/tenders/types";
 import { renderDigitalReceiptPdf, type ReceiptData } from "../../lib/peripherals/receipt";
+import { parkSale } from "../../lib/cart/parked";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
+import { SupervisorPinDialog } from "../../components/supervisor-pin-dialog";
+
+type PendingAction = { type: "void_item"; lineId: string } | { type: "void_sale" } | { type: "suspend" };
 
 type TenderMethod = "cash" | "card" | "mobile_money_mtn" | "mobile_money_airtel";
 
@@ -49,7 +53,12 @@ export default function SalePage() {
   const [completedSale, setCompletedSale] = useState<SaleEvent | null>(null);
   const [completing, setCompleting] = useState(false);
   const [voiding, setVoiding] = useState(false);
+  const [suspending, setSuspending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Manager-override gate (supervisor PIN) — void item/void sale/suspend all
+  // route through here instead of running directly off a click.
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
   useEffect(() => cartStore.subscribe(setCartState), [cartStore]);
 
@@ -243,6 +252,37 @@ export default function SalePage() {
     }
   }
 
+  async function handleSuspendSale(): Promise<void> {
+    if (session === null || tillId === null || session.store_id === null) return;
+
+    setSuspending(true);
+    setError(null);
+    try {
+      await parkSale(db, {
+        tillId,
+        storeId: session.store_id,
+        cashierId: session.user_id,
+        cart: cartState,
+      });
+      cartStore.clear();
+      setTenders([]);
+      setLastChangeDue(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSuspending(false);
+    }
+  }
+
+  function handleSupervisorApproved(): void {
+    const action = pendingAction;
+    setPendingAction(null);
+    if (action === null) return;
+    if (action.type === "void_item") handleRemoveLine(action.lineId);
+    else if (action.type === "void_sale") void handleVoidLastSale();
+    else void handleSuspendSale();
+  }
+
   async function handleVoidLastSale(): Promise<void> {
     if (completedSale === null || session === null || tillId === null || openShift === null || openShift === undefined) return;
 
@@ -324,7 +364,7 @@ export default function SalePage() {
             </Button>
 
             {completedSale.status === "completed" && (
-              <Button type="button" size="lg" variant="destructive" disabled={voiding} onClick={() => void handleVoidLastSale()}>
+              <Button type="button" size="lg" variant="destructive" disabled={voiding} onClick={() => setPendingAction({ type: "void_sale" })}>
                 {voiding ? "Voiding…" : "Void this sale"}
               </Button>
             )}
@@ -334,6 +374,20 @@ export default function SalePage() {
             </Button>
           </CardContent>
         </Card>
+        {pendingAction !== null && (
+          <SupervisorPinDialog
+            db={db}
+            title={
+              pendingAction.type === "void_item"
+                ? "Authorize void item"
+                : pendingAction.type === "void_sale"
+                  ? "Authorize void sale"
+                  : "Authorize suspend sale"
+            }
+            onCancel={() => setPendingAction(null)}
+            onApproved={handleSupervisorApproved}
+          />
+        )}
       </main>
     );
   }
@@ -391,7 +445,7 @@ export default function SalePage() {
                   +
                 </Button>
                 <span className="w-20 text-right text-body-md font-body-md text-on-surface">{line.lineTotal.toFixed(2)}</span>
-                <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveLine(line.lineId)}>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setPendingAction({ type: "void_item", lineId: line.lineId })}>
                   Remove
                 </Button>
               </div>
@@ -406,6 +460,17 @@ export default function SalePage() {
             <dt className="font-semibold text-on-surface">Total</dt>
             <dd className="text-right font-semibold text-on-surface">{cartState.grandTotal.toFixed(2)}</dd>
           </dl>
+
+          {cartState.lines.length > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={suspending}
+              onClick={() => setPendingAction({ type: "suspend" })}
+            >
+              {suspending ? "Suspending…" : "Suspend sale"}
+            </Button>
+          )}
         </CardContent>
       </Card>
 
@@ -499,6 +564,20 @@ export default function SalePage() {
           </Button>
         </CardContent>
       </Card>
+      {pendingAction !== null && (
+        <SupervisorPinDialog
+          db={db}
+          title={
+            pendingAction.type === "void_item"
+              ? "Authorize void item"
+              : pendingAction.type === "void_sale"
+                ? "Authorize void sale"
+                : "Authorize suspend sale"
+          }
+          onCancel={() => setPendingAction(null)}
+          onApproved={handleSupervisorApproved}
+        />
+      )}
     </main>
   );
 }

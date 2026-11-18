@@ -20,7 +20,7 @@ declare
   caller_role text := public.claim_role();
   caller_store_id uuid := public.claim_store_id();
   new_till_id uuid := gen_random_uuid();
-  new_credential text := encode(gen_random_bytes(32), 'base64');
+  new_credential text := encode(extensions.gen_random_bytes(32), 'base64');
   new_expires_at timestamptz := now() + interval '90 days';
 begin
   if caller_role = 'store_manager' and caller_store_id is distinct from p_store_id then
@@ -43,7 +43,7 @@ begin
     p_store_id,
     p_label,
     p_device_identity,
-    crypt(new_credential, gen_salt('bf')),
+    extensions.crypt(new_credential, extensions.gen_salt('bf')),
     now()
   );
 
@@ -87,7 +87,7 @@ declare
   caller_role text := public.claim_role();
   caller_till_id uuid := public.claim_till_id();
   stored_hash text;
-  new_credential text := encode(gen_random_bytes(32), 'base64');
+  new_credential text := encode(extensions.gen_random_bytes(32), 'base64');
   new_expires_at timestamptz := now() + interval '90 days';
 begin
   if caller_role <> 'device' or caller_till_id is distinct from p_till_id then
@@ -100,12 +100,12 @@ begin
   where t.till_id = p_till_id
     and t.retired_at is null;
 
-  if stored_hash is null or crypt(p_current_credential, stored_hash) <> stored_hash then
+  if stored_hash is null or extensions.crypt(p_current_credential, stored_hash) <> stored_hash then
     raise exception 'current device credential is invalid' using errcode = '42501';
   end if;
 
   update public.tills
-  set device_credential_hash = crypt(new_credential, gen_salt('bf'))
+  set device_credential_hash = extensions.crypt(new_credential, extensions.gen_salt('bf'))
   where public.tills.till_id = p_till_id;
 
   perform public.append_audit(

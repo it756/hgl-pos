@@ -35,6 +35,7 @@ export class SyncHealthReporter {
   #lastSuccessfulSyncAt: string | null = null;
   #consecutiveFailures = 0;
   #lastPostAttemptAt = 0;
+  #hydrated = false;
 
   constructor(options: SyncHealthReporterOptions) {
     this.#db = options.db;
@@ -45,12 +46,31 @@ export class SyncHealthReporter {
     this.#storeId = options.storeId;
     this.#appVersion = options.appVersion;
     this.#now = options.now ?? (() => new Date());
-    this.#fetch = options.fetchImpl ?? fetch;
+    // Native fetch throws "Illegal invocation" unless bound to a Window-like receiver.
+    this.#fetch = (options.fetchImpl ?? fetch).bind(globalThis);
   }
 
   async init(): Promise<void> {
     await this.#db.init();
     await ensureSyncHealthLocalTable(this.#db);
+
+    // A new reporter instance is constructed on every poll tick (and on every
+    // app restart) — without this, #lastSuccessfulSyncAt/#consecutiveFailures
+    // would always reset to their initializer values, making the /sync-health
+    // page show "Never"/0 forever even after a real successful send.
+    if (this.#hydrated) return;
+    this.#hydrated = true;
+
+    const [sentRows, latestRows] = await Promise.all([
+      this.#db.query<{ last_sent_at: string | null }>(
+        `SELECT MAX(sent_at) AS last_sent_at FROM sync_health_local`,
+      ),
+      this.#db.query<{ consecutive_failures: number }>(
+        `SELECT consecutive_failures FROM sync_health_local ORDER BY client_ts DESC LIMIT 1`,
+      ),
+    ]);
+    this.#lastSuccessfulSyncAt = sentRows[0]?.last_sent_at ?? null;
+    this.#consecutiveFailures = latestRows[0]?.consecutive_failures ?? 0;
   }
 
   async recordSnapshot(): Promise<SyncHealthSnapshot> {

@@ -18,7 +18,12 @@ export type Unsubscribe = () => void;
 export interface IDb {
   init(): Promise<void>;
   query<Row extends Record<string, unknown>>(sql: string, parameters?: SqlParameters, options?: QueryOptions): Promise<Row[]>;
-  insert(sql: string, parameters?: SqlParameters, options?: QueryOptions): Promise<void>;
+  /** Writes (INSERT/UPDATE/DELETE). Returns any RETURNING rows; [] otherwise — callers that don't need them can ignore the result. */
+  insert<Row extends Record<string, unknown> = Record<string, unknown>>(
+    sql: string,
+    parameters?: SqlParameters,
+    options?: QueryOptions,
+  ): Promise<Row[]>;
   watch<Row extends Record<string, unknown>>(query: WatchQuery<Row>): Unsubscribe;
   close(): Promise<void>;
 }

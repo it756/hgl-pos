@@ -35,6 +35,13 @@ const spikeSchema = new Schema({
   }),
 });
 
+// De-risking spike for the real .connect()/raw-tables design (see repo scope-out
+// notes): a raw table so PowerSync manages CRUD triggers into ps_crud on top of a
+// SQLite table we fully control (domain PK, not the implicit `id` view convention).
+const SPIKE_RAW_TODOS_NAME = "spike_todos";
+const SPIKE_RAW_TODOS_SCHEMA = { schema: {} };
+spikeSchema.withRawTables({ [SPIKE_RAW_TODOS_NAME]: SPIKE_RAW_TODOS_SCHEMA });
+
 let db: PowerSyncTauriDatabase | null = null;
 let dbInitPromise: Promise<PowerSyncTauriDatabase> | null = null;
 
@@ -157,6 +164,49 @@ export default function SpikePage() {
     });
   }
 
+  async function setupRawTable() {
+    await withStep("Setup raw table + CRUD triggers", async () => {
+      const d = await getDb(append);
+      await d.execute(
+        `CREATE TABLE IF NOT EXISTS ${SPIKE_RAW_TODOS_NAME} (id TEXT NOT NULL PRIMARY KEY, title TEXT NOT NULL) STRICT`,
+      );
+      const rawTableJson = JSON.stringify(
+        Schema.rawTableToJson({ name: SPIKE_RAW_TODOS_NAME, ...SPIKE_RAW_TODOS_SCHEMA }),
+      );
+      for (const write of ["INSERT", "UPDATE", "DELETE"]) {
+        await d.execute("SELECT powersync_create_raw_table_crud_trigger(?, ?, ?)", [
+          rawTableJson,
+          `${SPIKE_RAW_TODOS_NAME}_${write}`,
+          write,
+        ]);
+      }
+      append("Raw table + INSERT/UPDATE/DELETE CRUD triggers created.");
+    });
+  }
+
+  async function writeRawRow() {
+    await withStep("Write raw table row (should hit ps_crud)", async () => {
+      const d = await getDb(append);
+      const id = crypto.randomUUID();
+      await d.execute(`INSERT INTO ${SPIKE_RAW_TODOS_NAME} (id, title) VALUES (?, ?)`, [
+        id,
+        "spike raw row",
+      ]);
+      const crud = await d.getAll<{ count: number }>("SELECT count(*) as count FROM ps_crud");
+      append(`Row written (id=${id}). ps_crud rows right now: ${crud[0]?.count ?? 0}`);
+    });
+  }
+
+  async function connectRealBackend() {
+    await withStep("Connect (real Rust BackendConnector)", async () => {
+      const d = await getDb(append);
+      await invoke("spike_connect", { handle: d.rustHandle });
+      append(
+        "connect() requested — this only proves the wiring (Rust command resolved the JS handle and called PowerSyncDatabase.connect()); watch the Tauri terminal for 'spike_connect: uploading ...' lines after writing a raw row.",
+      );
+    });
+  }
+
   async function checkQueueDepth() {
     await withStep("Check upload queue depth", async () => {
       const d = await getDb(append);
@@ -248,6 +298,29 @@ export default function SpikePage() {
         <li>
           <button onClick={() => void simulateCrash()}>
             Simulate crash mid-write (criterion d)
+          </button>
+        </li>
+      </ol>
+      <p>
+        Real <code>.connect()</code> + backend connector de-risking spike
+        (scope-out follow-up) — run in order, watch the Tauri terminal for
+        <code>spike_connect:</code> log lines, not just this page:
+      </p>
+      <ol>
+        <li>
+          <button onClick={() => void setupRawTable()}>A. Setup raw table + CRUD triggers</button>
+        </li>
+        <li>
+          <button onClick={() => void connectRealBackend()}>
+            B. Connect (real Rust BackendConnector, dev-only JWT)
+          </button>
+        </li>
+        <li>
+          <button onClick={() => void writeRawRow()}>C. Write raw table row (should hit ps_crud)</button>
+        </li>
+        <li>
+          <button onClick={() => void checkQueueDepth()}>
+            D. Check ps_crud count (expect it to drain back to 0 after B+C)
           </button>
         </li>
       </ol>

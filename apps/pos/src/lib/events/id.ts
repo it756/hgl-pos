@@ -16,7 +16,7 @@ export async function nextEventId(db: IDb, tillId: string): Promise<string> {
     [tillId],
   );
 
-  const rows = await db.query<{ next_seq: number }>(
+  const rows = await db.insert<{ next_seq: number }>(
     `UPDATE local_event_sequence SET next_seq = next_seq + 1 WHERE till_id = ? RETURNING next_seq`,
     [tillId],
   );

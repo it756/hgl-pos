@@ -21,11 +21,11 @@
         "decorations": true,
         "alwaysOnTop": false,
         "focus": true,
-        "url": "/spike/"
+        "url": "/login"
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' http://localhost:8080 http://localhost:54321 ipc: https://ipc.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'"
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:8080 http://localhost:54321 http://127.0.0.1:54321 ipc: https://ipc.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'"
     }
   },
   "bundle": {
@@ -40,7 +40,7 @@
         "type": "downloadBootstrapper"
       }
     },
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": false,
     "resources": ["resources/cohort.config.json"],
     "externalBin": [],
     "icon": ["icons/icon.ico", "icons/icon.png"]

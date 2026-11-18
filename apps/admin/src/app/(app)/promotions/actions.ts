@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "../../lib/auth/session";
-import { createSupabaseServerClient } from "../../lib/supabase/server";
-import { createPromotion, updatePromotion, setPromotionActive, PromotionInputSchema } from "../../lib/promotions/promotions";
+import { requireRole } from "../../../lib/auth/session";
+import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { createPromotion, updatePromotion, setPromotionActive, PromotionInputSchema } from "../../../lib/promotions/promotions";
 
 export type PromotionFormState = { error: string | null; success: boolean };
 

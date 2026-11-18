@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // Unified audit view (T141, SC-006) — every append-only audit_log row
 // regardless of entity_type (price changes, stock adjustments, refunds,
 // role changes), unlike the price-specific view at
-// apps/admin/src/app/audit/prices/page.tsx (T084). RLS (`audit_log_read`,
+// apps/admin/src/app/(app)/audit/prices/page.tsx (T084). RLS (`audit_log_read`,
 // 0009) already scopes store_manager to rows whose old/new_value carries
 // their own store_id; hq_admin sees everything. No client-side scoping
 // needed here.

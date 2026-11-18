@@ -38,7 +38,8 @@ export class DeviceCredentialManager {
     this.#db = options.db;
     this.#tillId = options.tillId;
     this.#rotateEndpointUrl = options.rotateEndpointUrl;
-    this.#fetch = options.fetchImpl ?? fetch;
+    // Native fetch throws "Illegal invocation" unless bound to a Window-like receiver.
+    this.#fetch = (options.fetchImpl ?? fetch).bind(globalThis);
     this.#now = options.now ?? (() => new Date());
     this.#authorizationToken = options.authorizationToken ?? ((currentCredential) => currentCredential);
     this.#refreshWindowMs = options.refreshWindowMs ?? DEVICE_CREDENTIAL_REFRESH_WINDOW_MS;

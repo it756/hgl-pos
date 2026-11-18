@@ -64,9 +64,9 @@ function activeStreams(claims: ScopeClaims): string[] {
 
 function claimsFor(role: PosRole, storeId: string, tillId: string): ScopeClaims {
   return {
-    store_catalog_store_id: role === "cashier" || role === "store_manager" ? storeId : null,
-    store_prices_store_id: role === "cashier" || role === "store_manager" ? storeId : null,
-    store_stock_store_id: role === "cashier" || role === "store_manager" ? storeId : null,
+    store_catalog_store_id: role === "cashier" || role === "store_manager" || role === "device" ? storeId : null,
+    store_prices_store_id: role === "cashier" || role === "store_manager" || role === "device" ? storeId : null,
+    store_stock_store_id: role === "cashier" || role === "store_manager" || role === "device" ? storeId : null,
     store_users_store_id: storeId,
     till_activity_till_id: role === "cashier" ? tillId : null,
     store_operations_store_id: role === "store_manager" ? storeId : null,
@@ -97,9 +97,10 @@ describe("PowerSync Sync Streams isolation", () => {
     for (const query of streamQueries("store_catalog")) {
       expect(query).toContain("auth.parameter('store_catalog_store_id')");
     }
-    for (const query of streamQueries("store_prices")) {
-      expect(query).toContain("price_versions.store_id = auth.parameter('store_prices_store_id')");
-    }
+    expect(streamQueries("store_prices")).toEqual([
+      "SELECT price_versions.* FROM price_versions WHERE price_versions.store_id = auth.parameter('store_prices_store_id')",
+      "SELECT price_versions.* FROM price_versions JOIN store_sku_availability ON store_sku_availability.sku_id = price_versions.sku_id WHERE store_sku_availability.store_id = auth.parameter('store_prices_store_id') AND price_versions.store_id IS NULL",
+    ]);
     for (const query of streamQueries("store_stock")) {
       expect(query).toContain("auth.parameter('store_stock_store_id')");
     }
@@ -115,14 +116,19 @@ describe("PowerSync Sync Streams isolation", () => {
     ]);
   });
 
-  it("lets device credentials see only cashier roster and till provisioning", () => {
+  it("lets device credentials see their store's catalog/prices/stock, roster, and till provisioning", () => {
     const streams = activeStreams(claimsFor("device", storeA, tillA1));
     const queries = queriesFor(streams).join("\n");
 
-    expect(streams.sort()).toEqual(["device_provisioning", "store_users"].sort());
+    expect(streams.sort()).toEqual(
+      ["device_provisioning", "store_catalog", "store_prices", "store_stock", "store_users"].sort(),
+    );
     expect(queries).toContain("FROM users");
     expect(queries).toContain("FROM tills");
-    expect(queries).not.toMatch(/FROM (skus|sku_barcodes|sku_categories|promotions|price_versions|current_stock_by_store_sku|stock_events|sale_events|shift_events|sales|shifts|transfers|transfer_events|adjustment_events|sync_health_snapshots|sync_health_alerts)\b/);
+    expect(queries).toMatch(/FROM (skus|sku_barcodes|sku_categories|promotions|price_versions|current_stock_by_store_sku|stock_events)\b/);
+    // Device never gets till-activity, store-operations, or sync-health —
+    // those stay cashier/store_manager-only.
+    expect(queries).not.toMatch(/FROM (sale_events|shift_events|sales|shifts|transfers|transfer_events|adjustment_events|sync_health_snapshots|sync_health_alerts)\b/);
   });
 
   it("keeps store manager operations and sync health scoped to their store", () => {

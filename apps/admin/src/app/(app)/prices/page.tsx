@@ -1,8 +1,8 @@
-import { requireRole } from "../../lib/auth/session";
-import { createSupabaseServerClient } from "../../lib/supabase/server";
-import { loadPriceCatalog } from "../../lib/prices/change";
-import { loadPriceAuditLog } from "../../lib/audit/price-audit";
-import { PricesView } from "../../components/prices/prices-view";
+import { requireRole } from "../../../lib/auth/session";
+import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { loadPriceCatalog } from "../../../lib/prices/change";
+import { loadPriceAuditLog } from "../../../lib/audit/price-audit";
+import { PricesView } from "../../../components/prices/prices-view";
 
 export default async function PricesPage() {
   await requireRole(["hq_admin"]);

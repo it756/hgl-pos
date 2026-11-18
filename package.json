@@ -18,12 +18,14 @@
     "dev:pos": "pnpm --filter @hgl/pos dev",
     "tauri:dev": "pnpm --filter @hgl/pos tauri:dev",
     "tauri:build": "pnpm --filter @hgl/pos tauri:build",
+    "seed:local-till": "pnpm --filter @hgl/pos seed:local-till",
     "supabase:start": "supabase start",
     "supabase:reset": "supabase db reset",
     "supabase:seed": "psql \"$SUPABASE_DB_URL\" -f supabase/seed/seed.sql",
     "format": "prettier --write ."
   },
   "devDependencies": {
+    "argon2": "^0.45.1",
     "prettier": "^3.3.3",
     "typescript": "^5.5.4"
   },

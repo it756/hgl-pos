@@ -7,6 +7,7 @@ pub mod cohort;
 pub mod db;
 pub mod pin;
 pub mod spike;
+pub mod sync;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -18,6 +19,8 @@ pub fn run() {
             spike::spike_prepare_db_dir,
             spike::spike_locate_db,
             spike::spike_simulate_crash,
+            spike::spike_connect,
+            sync::powersync_connect,
             cohort::get_cohort_channel,
             db::get_or_create_db_encryption_key,
         ])

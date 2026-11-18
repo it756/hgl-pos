@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
-import { savePromotion, togglePromotionActive, type PromotionFormState } from "../../app/promotions/actions";
+import { savePromotion, togglePromotionActive, type PromotionFormState } from "../../app/(app)/promotions/actions";
 import type { Promotion, PromotionType } from "../../lib/promotions/promotions";
 import type { SkuOption, StoreOption } from "../../lib/catalog/options";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";

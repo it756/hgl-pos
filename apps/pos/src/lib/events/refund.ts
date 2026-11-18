@@ -64,7 +64,8 @@ export type VerifyRefundEligibilityParams = {
 };
 
 export async function verifyRefundEligibility(params: VerifyRefundEligibilityParams): Promise<VerifyRefundResponse> {
-  const fetchImpl = params.fetchImpl ?? fetch;
+  // Native fetch throws "Illegal invocation" unless bound to a Window-like receiver.
+  const fetchImpl = (params.fetchImpl ?? fetch).bind(globalThis);
 
   let response: Response;
   try {
@@ -115,7 +116,8 @@ export type SignInForRefundVerificationParams = {
  * sign-in path for the rest of the till app.
  */
 export async function signInForRefundVerification(params: SignInForRefundVerificationParams): Promise<string> {
-  const fetchImpl = params.fetchImpl ?? fetch;
+  // Native fetch throws "Illegal invocation" unless bound to a Window-like receiver.
+  const fetchImpl = (params.fetchImpl ?? fetch).bind(globalThis);
 
   let response: Response;
   try {

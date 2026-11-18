@@ -1,13 +1,27 @@
 import { requireRole } from "../../../lib/auth/session";
+import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { loadSettingRows, parseSettings } from "../../../lib/settings/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
+import { SettingsForm } from "../../../components/settings/settings-form";
 
 export default async function SettingsPage() {
   await requireRole(["hq_admin"]);
+  const supabase = await createSupabaseServerClient();
+  const rows = await loadSettingRows(supabase);
 
   return (
     <main className="flex flex-col gap-md p-md">
       <h1 className="text-headline-lg font-headline-lg font-semibold text-on-surface">Settings</h1>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>System configuration</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SettingsForm settings={parseSettings(rows)} rows={rows} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

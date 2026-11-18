@@ -174,6 +174,10 @@ returns boolean
 language plpgsql
 as $$
 begin
+  -- INSERT ... SELECT (composite).* bypasses column DEFAULTs entirely, and a
+  -- client-supplied value can't be trusted as authoritative "server received"
+  -- time — so this is always server-assigned, never taken from the caller.
+  row_data.server_ts := now();
   insert into public.stock_events
   select (row_data).*
   on conflict (event_id) do nothing;
@@ -186,6 +190,7 @@ returns boolean
 language plpgsql
 as $$
 begin
+  row_data.server_ts := now();
   insert into public.sale_events
   select (row_data).*
   on conflict (event_id) do nothing;
@@ -198,6 +203,7 @@ returns boolean
 language plpgsql
 as $$
 begin
+  row_data.server_ts := now();
   insert into public.shift_events
   select (row_data).*
   on conflict (event_id) do nothing;
@@ -210,6 +216,7 @@ returns boolean
 language plpgsql
 as $$
 begin
+  row_data.server_ts := now();
   insert into public.transfer_events
   select (row_data).*
   on conflict (event_id) do nothing;
@@ -222,6 +229,7 @@ returns boolean
 language plpgsql
 as $$
 begin
+  row_data.server_ts := now();
   insert into public.adjustment_events
   select (row_data).*
   on conflict (event_id) do nothing;
@@ -234,6 +242,7 @@ returns boolean
 language plpgsql
 as $$
 begin
+  row_data.server_ts := now();
   insert into public.price_change_events
   select (row_data).*
   on conflict (event_id) do nothing;

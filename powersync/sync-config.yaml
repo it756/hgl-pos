@@ -20,6 +20,8 @@ streams:
     auto_subscribe: true
     queries:
       - SELECT price_versions.* FROM price_versions WHERE price_versions.store_id = auth.parameter('store_prices_store_id')
+      # Global (store_id IS NULL) prices, scoped to SKUs carried by the till's store.
+      - SELECT price_versions.* FROM price_versions JOIN store_sku_availability ON store_sku_availability.sku_id = price_versions.sku_id WHERE store_sku_availability.store_id = auth.parameter('store_prices_store_id') AND price_versions.store_id IS NULL
 
   store_stock:
     auto_subscribe: true

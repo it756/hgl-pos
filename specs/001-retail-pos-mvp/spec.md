@@ -306,7 +306,7 @@ Requirements are numbered for traceability (FR-xxx). Each is independently testa
 - **FR-031**: System MUST provide a consolidated multi-store dashboard for head office.
 - **FR-032**: System MUST provide till reconciliation reports comparing cash-up figures against system totals.
 - **FR-033**: Reports MUST be exportable as CSV and PDF, and support scheduled email delivery.
-- **FR-034**: Report generation MUST meet a defined SLA (see NFR-002; exact figures to be set during planning).
+- **FR-034**: Report generation MUST meet a defined SLA (see NFR-002 for the concrete per-report-type figures).
 
 ### 4.5 Supporting Modules
 
@@ -323,7 +323,7 @@ Requirements are numbered for traceability (FR-xxx). Each is independently testa
 ## 5. Non-Functional Requirements
 
 - **NFR-001 (Performance)**: Scan-to-total transaction time target < 2 seconds. No checkout path blocks on network I/O.
-- **NFR-002 (Performance)**: Report generation SLA to be defined per report type during planning; large multi-store reports may run asynchronously.
+- **NFR-002 (Performance)**: Report generation SLA, per report type, against a representative dataset (≤90 days of history, ≤16 stores): `sales_by_store`, `sales_by_cashier`, `inventory_on_hand`, and `till_reconciliation` MUST render within 10 seconds; `sales_by_sku` and `transfer_history` (larger, row-per-SKU/row-per-transfer result sets) MUST render within 15 seconds. A report projected to exceed its SLA against the requested range (e.g. a multi-store, multi-year query) MAY run asynchronously via the report scheduler with email delivery instead of blocking the dashboard.
 - **NFR-003 (Availability)**: Full offline sale + stock deduction at the till with zero connectivity (see §8, §9).
 - **NFR-004 (Durability)**: Local data (SQLite, WAL mode) MUST survive power loss without corruption.
 - **NFR-005 (Independence)**: Each till syncs independently, directly to PowerSync/Supabase; no dependency on any other till or local coordinating device.

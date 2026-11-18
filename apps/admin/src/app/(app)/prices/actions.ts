@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "../../lib/auth/session";
-import { createSupabaseServerClient } from "../../lib/supabase/server";
-import { submitPriceChange, PriceChangeInputSchema } from "../../lib/prices/change";
+import { requireRole } from "../../../lib/auth/session";
+import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { submitPriceChange, PriceChangeInputSchema } from "../../../lib/prices/change";
 
 export type PriceChangeFormState = { error: string | null; success: boolean };
 

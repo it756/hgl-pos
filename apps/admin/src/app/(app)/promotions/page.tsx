@@ -1,8 +1,8 @@
-import { requireRole } from "../../lib/auth/session";
-import { createSupabaseServerClient } from "../../lib/supabase/server";
-import { loadSkuOptions, loadStoreOptions } from "../../lib/catalog/options";
-import { listPromotions } from "../../lib/promotions/promotions";
-import { PromotionsView } from "../../components/promotions/promotions-view";
+import { requireRole } from "../../../lib/auth/session";
+import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { loadSkuOptions, loadStoreOptions } from "../../../lib/catalog/options";
+import { listPromotions } from "../../../lib/promotions/promotions";
+import { PromotionsView } from "../../../components/promotions/promotions-view";
 
 export default async function PromotionsPage() {
   await requireRole(["hq_admin"]);

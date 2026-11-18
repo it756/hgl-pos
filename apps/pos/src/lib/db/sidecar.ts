@@ -6,7 +6,7 @@ export type SidecarDbOptions = {
 };
 
 type SidecarQueryResponse<Row> = {
-  rows: Row[];
+  rows?: Row[];
 };
 
 export class SidecarDb implements IDb {
@@ -15,7 +15,8 @@ export class SidecarDb implements IDb {
 
   constructor(options: SidecarDbOptions) {
     this.#endpoint = options.endpoint.replace(/\/$/, "");
-    this.#fetch = options.fetchImpl ?? fetch;
+    // Native fetch throws "Illegal invocation" unless bound to a Window-like receiver.
+    this.#fetch = (options.fetchImpl ?? fetch).bind(globalThis);
   }
 
   async init(): Promise<void> {
@@ -28,11 +29,16 @@ export class SidecarDb implements IDb {
     options: QueryOptions = {},
   ): Promise<Row[]> {
     const response = await this.request<SidecarQueryResponse<Row>>("/query", { sql, parameters }, options);
-    return response.rows;
+    return response.rows ?? [];
   }
 
-  async insert(sql: string, parameters: SqlParameters = [], options: QueryOptions = {}): Promise<void> {
-    await this.request("/execute", { sql, parameters }, options);
+  async insert<Row extends Record<string, unknown> = Record<string, unknown>>(
+    sql: string,
+    parameters: SqlParameters = [],
+    options: QueryOptions = {},
+  ): Promise<Row[]> {
+    const response = await this.request<SidecarQueryResponse<Row>>("/execute", { sql, parameters }, options);
+    return response.rows ?? [];
   }
 
   watch<Row extends Record<string, unknown>>(query: WatchQuery<Row>): Unsubscribe {

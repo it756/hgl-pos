@@ -35,19 +35,35 @@ export class HttpDateHeaderTimeSource implements NetworkTimeSource {
 
   constructor(url: string, fetchImpl: typeof fetch = fetch) {
     this.#url = url;
-    this.#fetch = fetchImpl;
+    // Native `fetch` throws "Illegal invocation" if called with a receiver
+    // other than `window`/`globalThis` — binding here means callers can
+    // safely invoke it as `this.#fetch(...)` (a mock fetchImpl in tests is
+    // unaffected by this, which is why no test caught it).
+    this.#fetch = fetchImpl.bind(globalThis);
   }
 
   async now(signal?: AbortSignal): Promise<Date> {
-    const response = await this.#fetch(this.#url, { method: "HEAD", cache: "no-store", signal });
-    const dateHeader = response.headers.get("date");
-    if (dateHeader === null) {
-      throw new Error("network time response did not include a Date header");
+    // Reads the trusted timestamp from the JSON body (supabase/functions/
+    // server-time), not a `Date` response header — `Date` isn't a
+    // CORS-safelisted response header, so a cross-origin browser fetch
+    // (till app vs Supabase are different origins/ports) can't read it via
+    // response.headers.get("date") unless the server also sends
+    // `Access-Control-Expose-Headers: Date`, which Supabase's own endpoints
+    // do not. Response bodies have no such restriction.
+    const response = await this.#fetch(this.#url, { method: "GET", cache: "no-store", signal });
+    if (!response.ok) {
+      throw new Error(`network time endpoint returned HTTP ${response.status}`);
     }
 
-    const networkTime = new Date(dateHeader);
+    const body: unknown = await response.json();
+    const now = typeof body === "object" && body !== null && "now" in body ? body.now : undefined;
+    if (typeof now !== "string") {
+      throw new Error('network time response did not include a valid "now" field');
+    }
+
+    const networkTime = new Date(now);
     if (Number.isNaN(networkTime.getTime())) {
-      throw new Error("network time response included an invalid Date header");
+      throw new Error("network time response included an invalid timestamp");
     }
 
     return networkTime;

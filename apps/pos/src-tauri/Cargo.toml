@@ -23,6 +23,19 @@ serde_json = "1.0"
 # first build and correct if `cargo` can't resolve it.
 tauri-plugin-powersync = "0.0.6"
 
+# Direct dep on the underlying native SDK (T016 spike, connect() follow-up): needed to
+# reach PowerSyncDatabase/BackendConnector types directly, since there is no JS-side
+# connect() on this alpha plugin (see spike.rs's SpikeConnector doc comment).
+powersync = "0.0.7"
+async-trait = "0.1"
+
+# Hand-signed dev-only JWTs for the spike's SpikeConnector (no real till auth session
+# exists yet — see spike.rs). NOT for use once real Supabase Auth sessions are wired.
+hmac = "0.12"
+sha2 = "0.10"
+base64 = "0.22"
+log = "0.4"
+
 # Argon2id PIN hashing lives in the Rust shell (T041).
 argon2 = "0.5"
 rand_core = { version = "0.6", features = ["std"] }

@@ -40,6 +40,28 @@ export type LoginResult =
   | { ok: true; session: CashierSession }
   | { ok: false; reason: "not_found" | "inactive" | "locked" | "invalid_pin"; lockedUntil?: string };
 
+export type SupervisorIdentity = {
+  user_id: string;
+  full_name: string;
+  role: CashierRole;
+};
+
+/** Manager-override gate (void item/void sale/suspend) — checked against the
+ * full active store_manager/hq_admin roster, independent of who is currently
+ * logged in as cashier. */
+export async function verifySupervisorPin(db: IDb, pin: string): Promise<SupervisorIdentity | null> {
+  await ensureCashierSessionTables(db);
+  const candidates = await db.query<CashierUserRow>(
+    `SELECT * FROM users WHERE role IN ('store_manager', 'hq_admin') AND is_active = 1`,
+  );
+  for (const candidate of candidates) {
+    if (await verifyPin(pin, candidate.pin_hash)) {
+      return { user_id: candidate.user_id, full_name: candidate.full_name, role: candidate.role };
+    }
+  }
+  return null;
+}
+
 export type CashierSessionManagerOptions = {
   db: IDb;
   now?: () => Date;

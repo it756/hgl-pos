@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { AppShell } from "../../components/app-shell";
+import { requireSessionClaims } from "../../lib/auth/session";
 
-export default function AuthenticatedLayout({ children }: { children: ReactNode }) {
-  return <AppShell>{children}</AppShell>;
+export default async function AuthenticatedLayout({ children }: { children: ReactNode }) {
+  const claims = await requireSessionClaims();
+  return <AppShell role={claims.role}>{children}</AppShell>;
 }

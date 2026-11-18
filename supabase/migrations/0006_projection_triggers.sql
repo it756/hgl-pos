@@ -372,6 +372,7 @@ set search_path = public, pg_temp
 as $$
 declare
   pending_receipt public.pending_transfer_receipts%rowtype;
+  already_dispatched boolean;
 begin
   if new.event_kind = 'transfer_requested' then
     insert into public.transfers (
@@ -394,7 +395,18 @@ begin
     set requested_at = coalesce(public.transfers.requested_at, excluded.requested_at),
         last_event_server_ts = greatest(coalesce(public.transfers.last_event_server_ts, excluded.last_event_server_ts), excluded.last_event_server_ts);
   elsif new.event_kind = 'transfer_dispatched' then
-    perform public.insert_transfer_stock_events(new, 'transfer_out', new.source_store_id, new.line_items, -1);
+    -- A redelivered/duplicate dispatch (new event_id, same transfer_id) must not
+    -- double-apply the stock-side effects below, even though the transfers.state
+    -- UPSERT further down already guards itself via its own CASE expression.
+    select exists (
+      select 1 from public.transfers
+      where transfer_id = new.transfer_id
+        and dispatched_at is not null
+    ) into already_dispatched;
+
+    if not already_dispatched then
+      perform public.insert_transfer_stock_events(new, 'transfer_out', new.source_store_id, new.line_items, -1);
+    end if;
 
     insert into public.transfers (
       transfer_id,
@@ -423,13 +435,15 @@ begin
         dispatched_at = coalesce(public.transfers.dispatched_at, excluded.dispatched_at),
         last_event_server_ts = greatest(coalesce(public.transfers.last_event_server_ts, excluded.last_event_server_ts), excluded.last_event_server_ts);
 
-    perform public.apply_transfer_transit_delta(
-      new.source_store_id,
-      new.destination_store_id,
-      new.line_items,
-      1,
-      new.server_ts
-    );
+    if not already_dispatched then
+      perform public.apply_transfer_transit_delta(
+        new.source_store_id,
+        new.destination_store_id,
+        new.line_items,
+        1,
+        new.server_ts
+      );
+    end if;
 
     for pending_receipt in
       select * from public.pending_transfer_receipts
