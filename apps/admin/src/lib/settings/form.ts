@@ -24,7 +24,7 @@ export function parseSettingsForm(formData: FormData): { values: Partial<SystemS
   if (!isValidTimeZone(values.default_report_timezone as string)) {
     return { values: {}, error: "default report timezone: unknown IANA timezone" };
   }
-  return { values: values as Partial<SystemSettings>, error: null };
+  return { values: values, error: null };
 }
 
 function isValidTimeZone(timeZone: string): boolean {

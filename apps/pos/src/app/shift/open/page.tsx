@@ -7,6 +7,8 @@ import { CashierSessionManager, type CashierSession } from "../../../lib/auth/ca
 import { createShiftEventQueue, getTillId } from "../../../lib/till/services";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
+import { inputClassName } from "../../../components/ui/input";
+import { cn } from "../../../lib/utils";
 
 export default function ShiftOpenPage() {
   const db = useDb();
@@ -90,18 +92,18 @@ export default function ShiftOpenPage() {
   if (session === undefined) return null;
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-md flex-col justify-center p-md">
+    <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-md flex-col justify-center p-3.5">
       <Card>
         <CardHeader>
           <CardTitle>Open shift</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-md">
+        <CardContent className="flex flex-col gap-4">
           <p className="text-body-md font-body-md text-on-surface-variant">
             Count the starting cash float and enter the amount below to begin trading.
           </p>
 
           <label className="flex flex-col gap-1">
-            <span className="text-label-md font-label-md text-on-surface-variant">Opening float (ZMW)</span>
+            <span className="text-body-md text-on-surface-variant">Opening float (ZMW)</span>
             <input
               type="number"
               inputMode="decimal"
@@ -109,7 +111,7 @@ export default function ShiftOpenPage() {
               step="0.01"
               value={openingFloat}
               onChange={(event) => setOpeningFloat(event.target.value)}
-              className="h-14 rounded-lg border border-outline-variant bg-surface px-md text-headline-md font-headline-md text-on-surface"
+              className={cn(inputClassName, "h-14 text-headline-md font-headline-md")}
               placeholder="0.00"
             />
           </label>

@@ -7,6 +7,8 @@ import { CashierSessionManager, type CashierSession } from "../../../lib/auth/ca
 import { searchSkusByName, type SkuRow } from "../../../lib/pricing/lookup";
 import { createAdjustmentRequestQueue, getTillId } from "../../../lib/till/services";
 import { Button } from "../../../components/ui/button";
+import { inputClassName } from "../../../components/ui/input";
+import { cn } from "../../../lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 
 export default function AdjustmentRequestPage() {
@@ -115,18 +117,18 @@ export default function AdjustmentRequestPage() {
   if (session === null) return null;
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-md flex-col justify-center p-md">
+    <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-xl flex-col justify-center p-3.5">
       <Card>
         <CardHeader>
           <CardTitle>Request stock adjustment</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-md">
+        <CardContent className="flex flex-col gap-3">
           <p className="text-body-md font-body-md text-on-surface-variant">
             Adjustments require manager approval before stock is affected (FR-017).
           </p>
 
           <label className="flex flex-col gap-1">
-            <span className="text-label-md font-label-md text-on-surface-variant">Search SKU by name</span>
+            <span className="text-body-md text-on-surface-variant">Search SKU by name</span>
             <input
               type="text"
               value={searchTerm}
@@ -134,18 +136,18 @@ export default function AdjustmentRequestPage() {
                 setSearchTerm(event.target.value);
                 setSelectedSku(null);
               }}
-              className="h-10 rounded-lg border border-outline-variant bg-surface px-md text-body-md font-body-md text-on-surface"
+              className={inputClassName}
               placeholder="e.g. maize meal"
             />
           </label>
 
           {results.length > 0 && (
-            <ul className="flex flex-col gap-1 rounded-lg border border-outline-variant">
+            <ul className="flex flex-col divide-y divide-outline-variant overflow-hidden rounded-lg border border-outline-variant bg-surface-container-lowest">
               {results.map((sku) => (
                 <li key={sku.sku_id}>
                   <button
                     type="button"
-                    className="w-full px-md py-2 text-left text-body-md font-body-md text-on-surface hover:bg-surface-container-low"
+                    className="min-h-10 w-full px-3 py-2 text-left text-body-md font-body-md text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
                     onClick={() => handleSelectSku(sku)}
                   >
                     {sku.name} <span className="text-on-surface-variant">({sku.code})</span>
@@ -158,7 +160,7 @@ export default function AdjustmentRequestPage() {
           {selectedSku !== null && (
             <>
               <label className="flex flex-col gap-1">
-                <span className="text-label-md font-label-md text-on-surface-variant">
+                <span className="text-body-md text-on-surface-variant">
                   Adjustment amount (negative for loss/damage)
                 </span>
                 <input
@@ -167,32 +169,32 @@ export default function AdjustmentRequestPage() {
                   step="0.001"
                   value={deltaQty}
                   onChange={(event) => setDeltaQty(event.target.value)}
-                  className="h-12 rounded-lg border border-outline-variant bg-surface px-md text-headline-md font-headline-md text-on-surface"
+                  className={cn(inputClassName, "h-12 text-headline-md font-headline-md")}
                 />
               </label>
 
               <label className="flex flex-col gap-1">
-                <span className="text-label-md font-label-md text-on-surface-variant">Reason</span>
+                <span className="text-body-md text-on-surface-variant">Reason</span>
                 <input
                   type="text"
                   value={reasonCode}
                   onChange={(event) => setReasonCode(event.target.value)}
-                  className="h-10 rounded-lg border border-outline-variant bg-surface px-md text-body-md font-body-md text-on-surface"
+                  className={inputClassName}
                   placeholder="e.g. damaged in storage"
                 />
               </label>
 
               <label className="flex flex-col gap-1">
-                <span className="text-label-md font-label-md text-on-surface-variant">Notes (optional)</span>
+                <span className="text-body-md text-on-surface-variant">Notes (optional)</span>
                 <textarea
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
-                  className="min-h-16 rounded-lg border border-outline-variant bg-surface px-md py-2 text-body-md font-body-md text-on-surface"
+                  className={cn(inputClassName, "min-h-16")}
                 />
               </label>
 
               {error !== null && <p className="text-body-md font-body-md text-destructive">{error}</p>}
-              {successMessage !== null && <p className="text-body-md font-body-md text-on-surface">{successMessage}</p>}
+              {successMessage !== null && <p className="rounded-lg bg-success-container px-3 py-2.5 text-body-md font-body-md text-success">{successMessage}</p>}
 
               <Button type="button" size="lg" disabled={submitting} onClick={() => void handleSubmit()}>
                 {submitting ? "Submitting…" : "Submit request"}

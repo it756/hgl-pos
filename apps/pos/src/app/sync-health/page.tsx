@@ -55,12 +55,12 @@ export default function SyncHealthPage() {
   const warning = buildOfflineWarningMessage(latest);
 
   return (
-    <main className="mx-auto max-w-lg p-md">
+    <main className="mx-auto max-w-xl p-3.5">
       <Card>
         <CardHeader>
           <CardTitle>Sync health</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-md">
+        <CardContent className="flex flex-col gap-4">
           {loadError !== null && (
             <p className="text-body-md font-body-md text-destructive">Could not read sync health: {loadError}</p>
           )}
@@ -94,7 +94,7 @@ export default function SyncHealthPage() {
           )}
 
           {warning !== null && (
-            <p role="alert" className="rounded-lg bg-amber-50 px-4 py-3 text-body-md font-body-md text-amber-800">
+            <p role="alert" className="rounded-lg bg-warning-container px-4 py-3 text-body-md font-body-md text-warning">
               {warning}
             </p>
           )}

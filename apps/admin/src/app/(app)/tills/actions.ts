@@ -25,12 +25,14 @@ export async function provisionTill(_prev: TillActionState, formData: FormData):
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid till.", issued: null };
 
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("provision_till", {
+  const rpcResult = await supabase.rpc("provision_till", {
     p_store_id: parsed.data.store_id,
     p_label: parsed.data.label,
     p_device_identity: parsed.data.device_identity,
     p_operator_user_id: claims.userId,
   });
+  const data: unknown = rpcResult.data;
+  const error = rpcResult.error;
   if (error !== null) return { error: friendlyDbError(error, "A till with this label or device identity"), issued: null };
 
   const row = firstRow(data);
@@ -42,7 +44,9 @@ export async function provisionTill(_prev: TillActionState, formData: FormData):
 export async function resetTillCredential(tillId: string): Promise<TillActionState> {
   await requireRole(["hq_admin"]);
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("admin_reset_till_credential", { p_till_id: tillId });
+  const rpcResult = await supabase.rpc("admin_reset_till_credential", { p_till_id: tillId });
+  const data: unknown = rpcResult.data;
+  const error = rpcResult.error;
   if (error !== null) return { error: friendlyDbError(error, "Till"), issued: null };
   const row = firstRow(data);
   if (row === null) return { error: "Reset returned no credential.", issued: null };

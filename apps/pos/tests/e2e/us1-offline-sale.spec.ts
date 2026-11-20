@@ -33,6 +33,11 @@ async function completeSale(tenderMethod: "Cash" | "MTN", reference?: string): P
   await codeInput.setValue(SKU_CODE);
   await (await $("button=Add")).click();
 
+  // Tendering lives in the Payment drawer, opened from the cart's "Pay ZMW …" button.
+  const payButton = await $("button*=Pay ZMW");
+  await payButton.waitForEnabled({ timeout: 5_000 });
+  await payButton.click();
+
   await (await $(`button=${tenderMethod}`)).click();
 
   const amountInput = await $('input[type="number"]');

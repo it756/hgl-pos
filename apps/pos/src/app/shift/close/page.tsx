@@ -9,6 +9,8 @@ import type { ShiftRow } from "../../../lib/events/queue";
 import { calculateOverShort } from "../../../lib/shift/cash-up";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
+import { inputClassName } from "../../../components/ui/input";
+import { cn } from "../../../lib/utils";
 
 export default function ShiftClosePage() {
   const db = useDb();
@@ -106,31 +108,49 @@ export default function ShiftClosePage() {
   if (openShift === undefined) return null;
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-md flex-col justify-center p-md">
-      <Card>
-        <CardHeader>
-          <CardTitle>Cash-up / end shift</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-md">
-          {loadError !== null && (
-            <p className="text-body-md font-body-md text-destructive">Could not load shift: {loadError}</p>
-          )}
+    <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-3xl flex-col justify-center gap-3 p-3.5">
+      {(loadError !== null || openShift === null) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Cash-up / end shift</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {loadError !== null && (
+              <p className="text-body-md font-body-md text-destructive">Could not load shift: {loadError}</p>
+            )}
+            {openShift === null && loadError === null && (
+              <p className="text-body-md font-body-md text-on-surface-variant">
+                No shift is currently open on this till.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-          {openShift === null && loadError === null && (
-            <p className="text-body-md font-body-md text-on-surface-variant">
-              No shift is currently open on this till.
-            </p>
-          )}
-
-          {openShift !== null && (
-            <>
+      {openShift !== null && (
+        <div className="grid gap-3 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Shift open since {new Date(openShift.opened_at).toTimeString().slice(0, 5)}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
               <dl className="grid grid-cols-2 gap-y-1 text-body-md font-body-md">
                 <dt className="text-on-surface-variant">Opening float</dt>
-                <dd className="text-right text-on-surface">{openShift.opening_float.toFixed(2)} ZMW</dd>
+                <dd className="text-right font-semibold text-on-surface">{openShift.opening_float.toFixed(2)} ZMW</dd>
               </dl>
+              <p className="text-body-md text-on-surface-variant">
+                Count the cash in the drawer, enter the total and close the shift. You&apos;ll be logged out afterwards.
+              </p>
+            </CardContent>
+          </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle>Cash-up / end shift</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
               <label className="flex flex-col gap-1">
-                <span className="text-label-md font-label-md text-on-surface-variant">Cash counted (ZMW)</span>
+                <span className="text-body-md text-on-surface-variant">Cash counted (ZMW)</span>
                 <input
                   type="number"
                   inputMode="decimal"
@@ -138,7 +158,7 @@ export default function ShiftClosePage() {
                   step="0.01"
                   value={cashCounted}
                   onChange={(event) => setCashCounted(event.target.value)}
-                  className="h-14 rounded-lg border border-outline-variant bg-surface px-md text-headline-md font-headline-md text-on-surface"
+                  className={cn(inputClassName, "h-14 text-headline-md font-headline-md")}
                   placeholder="0.00"
                 />
               </label>
@@ -156,11 +176,11 @@ export default function ShiftClosePage() {
               )}
 
               <label className="flex flex-col gap-1">
-                <span className="text-label-md font-label-md text-on-surface-variant">Notes (optional)</span>
+                <span className="text-body-md text-on-surface-variant">Notes (optional)</span>
                 <textarea
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
-                  className="min-h-20 rounded-lg border border-outline-variant bg-surface px-md py-2 text-body-md font-body-md text-on-surface"
+                  className={cn(inputClassName, "min-h-20")}
                 />
               </label>
 
@@ -175,10 +195,10 @@ export default function ShiftClosePage() {
               >
                 {submitting ? "Closing shift…" : "Close shift"}
               </Button>
-            </>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </main>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { KioskErrorScreen } from "../components/kiosk-error-screen";
+import { DEFAULT_THEME, themeBootstrapScript } from "../lib/theme/theme";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -21,8 +22,11 @@ export default function GlobalErrorPage({ error, reset }: GlobalErrorPageProps) 
   }, [error]);
 
   return (
-    <html lang="en">
-      <body className={inter.variable}>
+    <html lang="en" data-theme={DEFAULT_THEME} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+      </head>
+      <body className={`${inter.variable} min-h-screen bg-background text-on-background antialiased`}>
         <KioskErrorScreen error={error} onRetry={reset} />
       </body>
     </html>

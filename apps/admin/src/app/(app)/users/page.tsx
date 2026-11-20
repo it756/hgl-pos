@@ -16,7 +16,9 @@ export default async function UsersPage() {
 
   return (
     <main className="p-md">
-      <UsersDashboard users={users} stores={stores} scope={claims.role === "hq_admin" ? "hq_admin" : "store_manager"} />
+      <UsersDashboard users={users} stores={stores} scope={claims.role === "hq_admin" ? "hq_admin" : "store_manager"}
+        currentUserId={claims.userId}
+      />
     </main>
   );
 }

@@ -48,7 +48,7 @@ export default function HomePage() {
   if (!unprovisioned) return null;
 
   return (
-    <main className="p-md">
+    <main className="p-3.5">
       <h1 className="text-headline-lg font-headline-lg font-bold text-on-surface">HGL POS</h1>
       <p className="mt-2 text-body-md font-body-md text-on-surface-variant">
         This till has not been provisioned yet — contact support to complete setup.

@@ -17,15 +17,26 @@ import { buildMobileMoneyMtnTender } from "../../lib/tenders/mobile-money-mtn";
 import { buildMobileMoneyAirtelTender } from "../../lib/tenders/mobile-money-airtel";
 import { remainingBalance, sumTenderAmounts, type Tender } from "../../lib/tenders/types";
 import { renderDigitalReceiptPdf, type ReceiptData } from "../../lib/peripherals/receipt";
-import { parkSale } from "../../lib/cart/parked";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
+import { discardParkedSale, listParkedSales, parkSale, resumeParkedSale, type ParkedSaleSummary } from "../../lib/cart/parked";
+import { filterBrowseItems, loadBrowseCatalog, type BrowseCatalog, type SellableSku } from "../../lib/catalog/browse";
 import { SupervisorPinDialog } from "../../components/supervisor-pin-dialog";
+import { ProductBrowser } from "../../components/sale/product-browser";
+import { CartPanel } from "../../components/sale/cart-panel";
+import { PaymentSheet, type TenderMethod } from "../../components/sale/payment-sheet";
+import { HeldSalesSheet } from "../../components/sale/held-sales-sheet";
 
-type PendingAction = { type: "void_item"; lineId: string } | { type: "void_sale" } | { type: "suspend" };
+type PendingAction =
+  | { type: "void_item"; lineId: string }
+  | { type: "void_sale" }
+  | { type: "suspend" }
+  | { type: "discard_held"; parkedSaleId: string };
 
-type TenderMethod = "cash" | "card" | "mobile_money_mtn" | "mobile_money_airtel";
+const PENDING_ACTION_TITLES: Record<PendingAction["type"], string> = {
+  void_item: "Authorize void item",
+  void_sale: "Authorize void sale",
+  suspend: "Authorize hold sale",
+  discard_held: "Authorize discard held sale",
+};
 
 export default function SalePage() {
   const db = useDb();
@@ -37,12 +48,18 @@ export default function SalePage() {
   const [openShift, setOpenShift] = useState<ShiftRow | null | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const [catalog, setCatalog] = useState<BrowseCatalog>({ categories: [], items: [] });
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+
   const [cartState, setCartState] = useState<CartState>(() => cartStore.getState());
   const [skuNames, setSkuNames] = useState<Record<string, string>>({});
   const [codeInput, setCodeInput] = useState("");
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
 
+  const [paymentOpen, setPaymentOpen] = useState(false);
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [tenderMethod, setTenderMethod] = useState<TenderMethod>("cash");
   const [tenderAmountInput, setTenderAmountInput] = useState("");
@@ -56,8 +73,14 @@ export default function SalePage() {
   const [suspending, setSuspending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Manager-override gate (supervisor PIN) — void item/void sale/suspend all
-  // route through here instead of running directly off a click.
+  const [heldOpen, setHeldOpen] = useState(false);
+  const [heldSales, setHeldSales] = useState<ParkedSaleSummary[]>([]);
+  const [heldLoading, setHeldLoading] = useState(false);
+  const [heldError, setHeldError] = useState<string | null>(null);
+  const [heldBusy, setHeldBusy] = useState(false);
+
+  // Manager-override gate (supervisor PIN) — void item/void sale/hold/discard
+  // all route through here instead of running directly off a click.
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
   useEffect(() => cartStore.subscribe(setCartState), [cartStore]);
@@ -104,14 +127,65 @@ export default function SalePage() {
     };
   }, [db, router]);
 
-  const refreshPromotions = useCallback(
+  const loadCatalog = useCallback(
     async (storeId: string) => {
+      setCatalogLoading(true);
+      try {
+        setCatalog(await loadBrowseCatalog(db, { storeId, atTime: new Date().toISOString() }));
+        setCatalogError(null);
+      } catch (err) {
+        setCatalogError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setCatalogLoading(false);
+      }
+    },
+    [db],
+  );
+
+  const loadHeldSales = useCallback(
+    async (forTillId: string) => {
+      setHeldLoading(true);
+      try {
+        setHeldSales(await listParkedSales(db, forTillId));
+        setHeldError(null);
+      } catch (err) {
+        setHeldError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setHeldLoading(false);
+      }
+    },
+    [db],
+  );
+
+  const storeId = session?.store_id ?? null;
+
+  useEffect(() => {
+    if (storeId !== null && openShift) void loadCatalog(storeId);
+  }, [storeId, openShift, loadCatalog]);
+
+  useEffect(() => {
+    if (tillId !== null && openShift) void loadHeldSales(tillId);
+  }, [tillId, openShift, loadHeldSales]);
+
+  const catalogNames = useMemo(() => new Map(catalog.items.map((item) => [item.sku.sku_id, item.sku.name])), [catalog.items]);
+  const nameFor = useCallback(
+    (skuId: string) => skuNames[skuId] ?? catalogNames.get(skuId) ?? skuId,
+    [skuNames, catalogNames],
+  );
+
+  const visibleItems = useMemo(
+    () => filterBrowseItems(catalog.items, { categoryId: activeCategoryId, search: codeInput }),
+    [catalog.items, activeCategoryId, codeInput],
+  );
+
+  const refreshPromotions = useCallback(
+    async (forStoreId: string) => {
       const state = cartStore.getState();
       const atTime = new Date().toISOString();
       const distinctSkuIds = [...new Set(state.lines.map((line) => line.skuId))];
 
       const matchesBySkuId = await Promise.all(
-        distinctSkuIds.map((skuId) => findActivePromotions(db, { storeId, skuId, atTime })),
+        distinctSkuIds.map((skuId) => findActivePromotions(db, { storeId: forStoreId, skuId, atTime })),
       );
       const merged = new Map<string, Promotion>();
       for (const matches of matchesBySkuId) {
@@ -122,29 +196,27 @@ export default function SalePage() {
     [cartStore, db],
   );
 
-  async function handleAddByCode(): Promise<void> {
-    const code = codeInput.trim();
-    if (code.length === 0 || session === null || session.store_id === null) return;
+  /** Shared add path for scans, typed codes and product tiles. Returns false when the SKU has no active price. */
+  async function addSku(sku: SkuRow, forStoreId: string): Promise<boolean> {
+    const priceVersion = await resolvePrice(db, {
+      skuId: sku.sku_id,
+      storeId: forStoreId,
+      atTime: new Date().toISOString(),
+    });
+    if (priceVersion === null) {
+      setLookupError(`No active price for ${sku.name}.`);
+      return false;
+    }
 
-    setAdding(true);
-    setLookupError(null);
-    try {
-      const sku: SkuRow | null = (await findSkuByBarcode(db, code)) ?? (await findSkuByCode(db, code));
-      if (sku === null) {
-        setLookupError(`No SKU found for "${code}".`);
-        return;
-      }
-
-      const priceVersion = await resolvePrice(db, {
-        skuId: sku.sku_id,
-        storeId: session.store_id,
-        atTime: new Date().toISOString(),
-      });
-      if (priceVersion === null) {
-        setLookupError(`No active price for ${sku.name}.`);
-        return;
-      }
-
+    const existingLine =
+      sku.unit_type === "quantity"
+        ? cartStore
+            .getState()
+            .lines.find((line) => line.skuId === sku.sku_id && line.priceVersionId === priceVersion.price_version_id)
+        : undefined;
+    if (existingLine !== undefined) {
+      cartStore.updateLineQty(existingLine.lineId, existingLine.qty + 1);
+    } else {
       cartStore.addLine({
         skuId: sku.sku_id,
         unitType: sku.unit_type,
@@ -152,9 +224,44 @@ export default function SalePage() {
         unitPrice: priceVersion.unit_price,
         priceVersionId: priceVersion.price_version_id,
       });
-      setSkuNames((current) => ({ ...current, [sku.sku_id]: sku.name }));
-      await refreshPromotions(session.store_id);
-      setCodeInput("");
+    }
+    setSkuNames((current) => ({ ...current, [sku.sku_id]: sku.name }));
+    await refreshPromotions(forStoreId);
+    return true;
+  }
+
+  async function handleAddByCode(): Promise<void> {
+    const code = codeInput.trim();
+    if (code.length === 0 || storeId === null) return;
+
+    setAdding(true);
+    setLookupError(null);
+    try {
+      let sku: SkuRow | null = (await findSkuByBarcode(db, code)) ?? (await findSkuByCode(db, code));
+      if (sku === null) {
+        // Fall back to the search box behaviour: a single name match is unambiguous enough to add.
+        const nameMatches = visibleItems.filter((item) => item.price !== null);
+        sku = nameMatches.length === 1 ? (nameMatches[0]?.sku ?? null) : null;
+      }
+      if (sku === null) {
+        setLookupError(`No SKU found for "${code}".`);
+        return;
+      }
+
+      if (await addSku(sku, storeId)) setCodeInput("");
+    } catch (err) {
+      setLookupError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  async function handlePickItem(item: SellableSku): Promise<void> {
+    if (storeId === null) return;
+    setAdding(true);
+    setLookupError(null);
+    try {
+      await addSku(item.sku, storeId);
     } catch (err) {
       setLookupError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -167,12 +274,12 @@ export default function SalePage() {
     if (line === undefined) return;
     const step = line.unitType === "weight" ? 0.1 : 1;
     cartStore.updateLineQty(lineId, Math.max(0, line.qty + delta * step));
-    if (session?.store_id != null) void refreshPromotions(session.store_id);
+    if (storeId !== null) void refreshPromotions(storeId);
   }
 
   function handleRemoveLine(lineId: string): void {
     cartStore.removeLine(lineId);
-    if (session?.store_id != null) void refreshPromotions(session.store_id);
+    if (storeId !== null) void refreshPromotions(storeId);
   }
 
   const remaining = remainingBalance(cartState.grandTotal, tenders);
@@ -244,7 +351,7 @@ export default function SalePage() {
       setCompletedSale(event);
       cartStore.clear();
       setTenders([]);
-      setLastChangeDue(null);
+      void loadCatalog(session.store_id);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -267,10 +374,49 @@ export default function SalePage() {
       cartStore.clear();
       setTenders([]);
       setLastChangeDue(null);
+      void loadHeldSales(tillId);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSuspending(false);
+    }
+  }
+
+  async function handleResumeHeld(parkedSaleId: string): Promise<void> {
+    if (tillId === null) return;
+    if (cartState.lines.length > 0) {
+      setHeldError("Hold or clear the current sale first.");
+      return;
+    }
+
+    setHeldBusy(true);
+    setHeldError(null);
+    try {
+      const restored = await resumeParkedSale(db, parkedSaleId);
+      cartStore.restore(restored);
+      setTenders([]);
+      setLastChangeDue(null);
+      setHeldOpen(false);
+      if (storeId !== null) await refreshPromotions(storeId);
+      void loadHeldSales(tillId);
+    } catch (err) {
+      setHeldError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setHeldBusy(false);
+    }
+  }
+
+  async function handleDiscardHeld(parkedSaleId: string): Promise<void> {
+    if (tillId === null) return;
+    setHeldBusy(true);
+    setHeldError(null);
+    try {
+      await discardParkedSale(db, parkedSaleId);
+      await loadHeldSales(tillId);
+    } catch (err) {
+      setHeldError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setHeldBusy(false);
     }
   }
 
@@ -280,6 +426,7 @@ export default function SalePage() {
     if (action === null) return;
     if (action.type === "void_item") handleRemoveLine(action.lineId);
     else if (action.type === "void_sale") void handleVoidLastSale();
+    else if (action.type === "discard_held") void handleDiscardHeld(action.parkedSaleId);
     else void handleSuspendSale();
   }
 
@@ -296,6 +443,7 @@ export default function SalePage() {
         shiftId: openShift.shift_id,
       });
       setCompletedSale(voidEvent);
+      if (session.store_id !== null) void loadCatalog(session.store_id);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -314,7 +462,7 @@ export default function SalePage() {
       clientTs: completedSale.client_ts,
       status: completedSale.status,
       items: completedSale.items.map((item) => ({
-        skuName: skuNames[item.sku_id] ?? item.sku_id,
+        skuName: nameFor(item.sku_id),
         qty: item.qty,
         unitPrice: item.unit_price,
         lineDiscount: item.line_discount,
@@ -336,244 +484,118 @@ export default function SalePage() {
     URL.revokeObjectURL(url);
   }
 
-  if (openShift === undefined) return null;
-
-  if (completedSale !== null) {
-    return (
-      <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-md flex-col justify-center p-md">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Sale {completedSale.status === "completed" ? "complete" : "voided"}
-              <Badge variant={completedSale.status === "completed" ? "success" : "destructive"}>
-                {completedSale.status}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-md">
-            <p className="text-body-md font-body-md text-on-surface-variant">Sale ID: {completedSale.sale_id}</p>
-            <p className="text-headline-md font-headline-md text-on-surface">{completedSale.grand_total.toFixed(2)} ZMW</p>
-            {lastChangeDue !== null && (
-              <p className="text-body-md font-body-md text-on-surface-variant">Change given: {lastChangeDue.toFixed(2)} ZMW</p>
-            )}
-
-            {error !== null && <p className="text-body-md font-body-md text-destructive">{error}</p>}
-
-            <Button type="button" size="lg" onClick={handleDownloadReceipt}>
-              Download receipt (PDF)
-            </Button>
-
-            {completedSale.status === "completed" && (
-              <Button type="button" size="lg" variant="destructive" disabled={voiding} onClick={() => setPendingAction({ type: "void_sale" })}>
-                {voiding ? "Voiding…" : "Void this sale"}
-              </Button>
-            )}
-
-            <Button type="button" size="lg" variant="outline" onClick={() => setCompletedSale(null)}>
-              New sale
-            </Button>
-          </CardContent>
-        </Card>
-        {pendingAction !== null && (
-          <SupervisorPinDialog
-            db={db}
-            title={
-              pendingAction.type === "void_item"
-                ? "Authorize void item"
-                : pendingAction.type === "void_sale"
-                  ? "Authorize void sale"
-                  : "Authorize suspend sale"
-            }
-            onCancel={() => setPendingAction(null)}
-            onApproved={handleSupervisorApproved}
-          />
-        )}
-      </main>
-    );
+  function handleNewSale(): void {
+    setCompletedSale(null);
+    setLastChangeDue(null);
+    setError(null);
+    setTenderError(null);
+    setPaymentOpen(false);
   }
 
+  function handlePaymentOpenChange(open: boolean): void {
+    if (open) {
+      setPaymentOpen(true);
+      return;
+    }
+    // Closing the receipt is the same as starting a new sale; closing mid-payment keeps captured tenders.
+    if (completedSale !== null) handleNewSale();
+    else setPaymentOpen(false);
+  }
+
+  if (openShift === undefined) return null;
+
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-2xl flex-col gap-md p-md">
-      {loadError !== null && <p className="text-body-md font-body-md text-destructive">Could not load till state: {loadError}</p>}
+    <main className="flex flex-col gap-3 p-3.5 min-[900px]:grid min-[900px]:h-[calc(100vh-3.5rem)] min-[900px]:grid-cols-[1fr_410px]">
+      {loadError !== null && (
+        <p className="text-body-md text-destructive min-[900px]:col-span-2">Could not load till state: {loadError}</p>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Scan or enter a code</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-sm">
-          <div className="flex gap-2">
-            <input
-              autoFocus
-              value={codeInput}
-              onChange={(event) => setCodeInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void handleAddByCode();
-              }}
-              placeholder="Barcode or SKU code"
-              className="h-12 flex-1 rounded-lg border border-outline-variant bg-surface px-md text-body-md font-body-md text-on-surface"
-            />
-            <Button type="button" size="lg" disabled={adding} onClick={() => void handleAddByCode()}>
-              Add
-            </Button>
-          </div>
-          {lookupError !== null && <p className="text-body-md font-body-md text-destructive">{lookupError}</p>}
-        </CardContent>
-      </Card>
+      <ProductBrowser
+        codeInput={codeInput}
+        onCodeInputChange={(value) => {
+          setCodeInput(value);
+          setLookupError(null);
+        }}
+        onSubmitCode={() => void handleAddByCode()}
+        adding={adding}
+        lookupError={lookupError}
+        categories={catalog.categories}
+        activeCategoryId={activeCategoryId}
+        onCategoryChange={setActiveCategoryId}
+        items={visibleItems}
+        catalogLoading={catalogLoading}
+        catalogError={catalogError}
+        onPick={(item) => void handlePickItem(item)}
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Cart</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-sm">
-          {cartState.lines.length === 0 && (
-            <p className="text-body-md font-body-md text-on-surface-variant">No items yet.</p>
-          )}
-          {cartState.lines.map((line) => (
-            <div key={line.lineId} className="flex items-center justify-between gap-2 border-b border-outline-variant pb-2">
-              <div className="flex flex-col">
-                <span className="text-body-md font-body-md text-on-surface">{skuNames[line.skuId] ?? line.skuId}</span>
-                <span className="text-label-sm font-label-sm text-on-surface-variant">
-                  {line.qty} x {line.unitPrice.toFixed(2)}
-                  {line.promotionId !== null && " · promo applied"}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => handleQtyChange(line.lineId, -1)}>
-                  −
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => handleQtyChange(line.lineId, 1)}>
-                  +
-                </Button>
-                <span className="w-20 text-right text-body-md font-body-md text-on-surface">{line.lineTotal.toFixed(2)}</span>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setPendingAction({ type: "void_item", lineId: line.lineId })}>
-                  Remove
-                </Button>
-              </div>
-            </div>
-          ))}
+      <CartPanel
+        cart={cartState}
+        nameFor={nameFor}
+        onQtyChange={handleQtyChange}
+        onRemoveLine={(lineId) => setPendingAction({ type: "void_item", lineId })}
+        onHold={() => setPendingAction({ type: "suspend" })}
+        holding={suspending}
+        heldCount={heldSales.length}
+        onShowHeld={() => {
+          setHeldError(null);
+          setHeldOpen(true);
+          if (tillId !== null) void loadHeldSales(tillId);
+        }}
+        onPay={() => {
+          setError(null);
+          setPaymentOpen(true);
+        }}
+        error={paymentOpen ? null : error}
+      />
 
-          <dl className="mt-2 grid grid-cols-2 gap-y-1 text-body-md font-body-md">
-            <dt className="text-on-surface-variant">Subtotal</dt>
-            <dd className="text-right text-on-surface">{cartState.subtotal.toFixed(2)}</dd>
-            <dt className="text-on-surface-variant">Discount</dt>
-            <dd className="text-right text-on-surface">-{cartState.discountTotal.toFixed(2)}</dd>
-            <dt className="font-semibold text-on-surface">Total</dt>
-            <dd className="text-right font-semibold text-on-surface">{cartState.grandTotal.toFixed(2)}</dd>
-          </dl>
+      <PaymentSheet
+        open={paymentOpen}
+        onOpenChange={handlePaymentOpenChange}
+        grandTotal={cartState.grandTotal}
+        remaining={remaining}
+        tenders={tenders}
+        tenderedTotal={sumTenderAmounts(tenders)}
+        tenderMethod={tenderMethod}
+        onTenderMethodChange={(method) => {
+          setTenderMethod(method);
+          setTenderError(null);
+        }}
+        amountInput={tenderAmountInput}
+        onAmountInputChange={setTenderAmountInput}
+        referenceInput={tenderReferenceInput}
+        onReferenceInputChange={setTenderReferenceInput}
+        onAddTender={handleAddTender}
+        onCardTender={() => void handleCardTender()}
+        onClearTenders={handleClearTenders}
+        tenderError={tenderError}
+        lastChangeDue={lastChangeDue}
+        error={error}
+        completing={completing}
+        canComplete={cartState.lines.length > 0 && remaining <= 0.01}
+        onComplete={() => void handleCompleteSale()}
+        completedSale={completedSale}
+        nameFor={nameFor}
+        voiding={voiding}
+        onDownloadReceipt={handleDownloadReceipt}
+        onVoidSale={() => setPendingAction({ type: "void_sale" })}
+        onNewSale={handleNewSale}
+      />
 
-          {cartState.lines.length > 0 && (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={suspending}
-              onClick={() => setPendingAction({ type: "suspend" })}
-            >
-              {suspending ? "Suspending…" : "Suspend sale"}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+      <HeldSalesSheet
+        open={heldOpen}
+        onOpenChange={setHeldOpen}
+        heldSales={heldSales}
+        loading={heldLoading}
+        error={heldError}
+        busy={heldBusy}
+        onResume={(parkedSaleId) => void handleResumeHeld(parkedSaleId)}
+        onDiscard={(parkedSaleId) => setPendingAction({ type: "discard_held", parkedSaleId })}
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Tender</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-sm">
-          <p className="text-body-md font-body-md text-on-surface-variant">Remaining: {remaining.toFixed(2)} ZMW</p>
-
-          {tenders.length > 0 && (
-            <ul className="flex flex-col gap-1 text-body-md font-body-md text-on-surface-variant">
-              {tenders.map((tender, index) => (
-                <li key={index}>
-                  {tender.type}: {tender.amount.toFixed(2)}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="flex gap-2">
-            {(["cash", "card", "mobile_money_mtn", "mobile_money_airtel"] as const).map((method) => (
-              <Button
-                key={method}
-                type="button"
-                variant={tenderMethod === method ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setTenderMethod(method);
-                  setTenderError(null);
-                }}
-              >
-                {method === "cash" && "Cash"}
-                {method === "card" && "Card"}
-                {method === "mobile_money_mtn" && "MTN"}
-                {method === "mobile_money_airtel" && "Airtel"}
-              </Button>
-            ))}
-          </div>
-
-          {tenderMethod === "card" ? (
-            <Button type="button" size="lg" onClick={() => void handleCardTender()}>
-              Tender with card
-            </Button>
-          ) : (
-            <div className="flex flex-col gap-sm">
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0"
-                step="0.01"
-                value={tenderAmountInput}
-                onChange={(event) => setTenderAmountInput(event.target.value)}
-                placeholder={`Amount (${remaining.toFixed(2)})`}
-                className="h-12 rounded-lg border border-outline-variant bg-surface px-md text-body-md font-body-md text-on-surface"
-              />
-              {tenderMethod !== "cash" && (
-                <input
-                  value={tenderReferenceInput}
-                  onChange={(event) => setTenderReferenceInput(event.target.value)}
-                  placeholder="Mobile money reference"
-                  className="h-12 rounded-lg border border-outline-variant bg-surface px-md text-body-md font-body-md text-on-surface"
-                />
-              )}
-              <Button type="button" size="lg" onClick={handleAddTender}>
-                Add tender
-              </Button>
-            </div>
-          )}
-
-          {tenderError !== null && <p className="text-body-md font-body-md text-destructive">{tenderError}</p>}
-          {lastChangeDue !== null && (
-            <p className="text-body-md font-body-md text-on-surface-variant">Change due: {lastChangeDue.toFixed(2)} ZMW</p>
-          )}
-
-          {tenders.length > 0 && (
-            <Button type="button" variant="ghost" size="sm" onClick={handleClearTenders}>
-              Clear tenders
-            </Button>
-          )}
-
-          {error !== null && <p className="text-body-md font-body-md text-destructive">{error}</p>}
-
-          <Button
-            type="button"
-            size="lg"
-            disabled={completing || cartState.lines.length === 0 || remaining > 0.01}
-            onClick={() => void handleCompleteSale()}
-          >
-            {completing ? "Completing sale…" : `Complete sale — ${sumTenderAmounts(tenders).toFixed(2)} tendered`}
-          </Button>
-        </CardContent>
-      </Card>
       {pendingAction !== null && (
         <SupervisorPinDialog
           db={db}
-          title={
-            pendingAction.type === "void_item"
-              ? "Authorize void item"
-              : pendingAction.type === "void_sale"
-                ? "Authorize void sale"
-                : "Authorize suspend sale"
-          }
+          title={PENDING_ACTION_TITLES[pendingAction.type]}
           onCancel={() => setPendingAction(null)}
           onApproved={handleSupervisorApproved}
         />

@@ -21,6 +21,7 @@ import {
   getVerifyRefundEndpoint,
 } from "../../lib/till/services";
 import { Button } from "../../components/ui/button";
+import { inputClassName } from "../../components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 
 type Mode = "lookup" | "same_session_void" | "connectivity_required";
@@ -204,12 +205,12 @@ export default function RefundPage() {
   if (session === null) return null;
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-md flex-col justify-center p-md">
+    <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-xl flex-col justify-center p-3.5">
       <Card>
         <CardHeader>
           <CardTitle>Refund a sale</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-md">
+        <CardContent className="flex flex-col gap-3">
           {currentShiftId === null && (
             <p className="text-body-md font-body-md text-destructive">
               No shift is open on this till — open a shift before issuing a refund.
@@ -217,7 +218,7 @@ export default function RefundPage() {
           )}
 
           <label className="flex flex-col gap-1">
-            <span className="text-label-md font-label-md text-on-surface-variant">Original sale ID (from receipt)</span>
+            <span className="text-body-md text-on-surface-variant">Original sale ID (from receipt)</span>
             <input
               type="text"
               value={saleIdInput}
@@ -226,7 +227,7 @@ export default function RefundPage() {
                 setMode("lookup");
                 resetVerification();
               }}
-              className="h-10 rounded-lg border border-outline-variant bg-surface px-md text-body-md font-body-md text-on-surface"
+              className={inputClassName}
               placeholder="e.g. 3f9a1c2e-..."
             />
           </label>
@@ -245,7 +246,9 @@ export default function RefundPage() {
                 This sale was made in your current shift on this till — it can be voided offline.
               </p>
               {error !== null && <p className="text-body-md font-body-md text-destructive">{error}</p>}
-              {successMessage !== null && <p className="text-body-md font-body-md text-on-surface">{successMessage}</p>}
+              {successMessage !== null && (
+                <p className="rounded-lg bg-success-container px-3 py-2.5 text-body-md font-body-md text-success">{successMessage}</p>
+              )}
               <Button type="button" size="lg" disabled={submitting} onClick={() => void handleVoidSameSession()}>
                 {submitting ? "Voiding…" : "Void this sale"}
               </Button>
@@ -254,18 +257,18 @@ export default function RefundPage() {
 
           {mode === "connectivity_required" && (
             <div className="flex flex-col gap-sm">
-              <p className="text-body-md font-body-md text-on-surface-variant">
+              <p className="rounded-lg bg-warning-container px-3 py-2.5 text-body-md font-body-md text-warning">
                 This sale is from a different till or a previous shift — refunding it requires connectivity to
                 confirm the original sale server-side (FR-012). No local write happens until that succeeds.
               </p>
 
               <label className="flex flex-col gap-1">
-                <span className="text-label-md font-label-md text-on-surface-variant">Refund reason</span>
+                <span className="text-body-md text-on-surface-variant">Refund reason</span>
                 <input
                   type="text"
                   value={refundReason}
                   onChange={(event) => setRefundReason(event.target.value)}
-                  className="h-10 rounded-lg border border-outline-variant bg-surface px-md text-body-md font-body-md text-on-surface"
+                  className={inputClassName}
                   placeholder="e.g. customer return, wrong item"
                 />
               </label>
@@ -273,21 +276,21 @@ export default function RefundPage() {
               {verified === null && (
                 <>
                   <label className="flex flex-col gap-1">
-                    <span className="text-label-md font-label-md text-on-surface-variant">Sign-in email</span>
+                    <span className="text-body-md text-on-surface-variant">Sign-in email</span>
                     <input
                       type="email"
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
-                      className="h-10 rounded-lg border border-outline-variant bg-surface px-md text-body-md font-body-md text-on-surface"
+                      className={inputClassName}
                     />
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span className="text-label-md font-label-md text-on-surface-variant">Sign-in password</span>
+                    <span className="text-body-md text-on-surface-variant">Sign-in password</span>
                     <input
                       type="password"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
-                      className="h-10 rounded-lg border border-outline-variant bg-surface px-md text-body-md font-body-md text-on-surface"
+                      className={inputClassName}
                     />
                   </label>
 
@@ -303,14 +306,14 @@ export default function RefundPage() {
                 <>
                   <dl className="grid grid-cols-2 gap-y-1 text-body-md font-body-md">
                     <dt className="text-on-surface-variant">Original total</dt>
-                    <dd className="text-right text-on-surface">{verified.original.grand_total.toFixed(2)}</dd>
+                    <dd className="text-right font-semibold text-on-surface">{verified.original.grand_total.toFixed(2)}</dd>
                     <dt className="text-on-surface-variant">Original till</dt>
                     <dd className="text-right text-on-surface">{verified.original.till_id}</dd>
                   </dl>
 
                   {error !== null && <p className="text-body-md font-body-md text-destructive">{error}</p>}
                   {successMessage !== null && (
-                    <p className="text-body-md font-body-md text-on-surface">{successMessage}</p>
+                    <p className="rounded-lg bg-success-container px-3 py-2.5 text-body-md font-body-md text-success">{successMessage}</p>
                   )}
 
                   <Button type="button" size="lg" disabled={submitting} onClick={() => void handleConfirmRefund()}>

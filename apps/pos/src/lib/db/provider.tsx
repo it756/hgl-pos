@@ -8,7 +8,10 @@ import { SidecarDb } from "./sidecar";
 import { TauriSdkDb } from "./tauri-sdk";
 import { connectPowerSync } from "../sync/connect";
 import { MAX_UPLOAD_BATCH_SIZE, SyncEngine } from "../sync/engine";
-import { CashierSessionManager } from "../auth/cashier-session";
+import { CashierSessionManager, ensureCashierSessionTables } from "../auth/cashier-session";
+import { ensureSkuTables } from "../pricing/lookup";
+import { ensurePromotionsTable } from "../pricing/promotions";
+import { ensurePriceVersionsTable } from "../pricing/resolve";
 import {
   createDeviceSessionManager,
   createReliableClock,
@@ -18,9 +21,33 @@ import {
   getTillId,
 } from "../till/services";
 
-// Empty until the backend connector (.connect()) is wired — domain tables are
-// currently read/written via raw SQL through IDb, not PowerSync's typed views.
+// Raw tables (see https://docs.powersync.com/client-sdks/advanced/raw-tables)
+// sync server rows directly into the same plain SQLite tables each module's
+// own `ensureXTable()` already creates/reads via raw SQL through IDb, rather
+// than into PowerSync's schemaless ps_data__ JSON views. Only tables that
+// are currently read locally are wired here — e.g. stock/category data isn't
+// consumed by the app yet, so it isn't registered. The raw table key must
+// match the server/source table name (see powersync/sync-config.yaml); the
+// local SQLite table name defaults to the same (see RawTableSchema.tableName).
 const posSyncSchema = new Schema({});
+posSyncSchema.withRawTables({
+  users: { schema: {} },
+  skus: { schema: {} },
+  sku_barcodes: { schema: {} },
+  promotions: { schema: {} },
+  price_versions: { schema: {} },
+});
+
+// Raw tables must physically exist (via CREATE TABLE) before `.connect()` is
+// called, though not before the schema is opened/registered — see the "Define
+// Sync Mapping for Raw Tables" note in the PowerSync raw-tables docs linked
+// above. Each ensureXTable() is idempotent (CREATE TABLE IF NOT EXISTS).
+async function ensureSyncedTablesExist(db: IDb): Promise<void> {
+  await ensureCashierSessionTables(db);
+  await ensureSkuTables(db);
+  await ensurePromotionsTable(db);
+  await ensurePriceVersionsTable(db);
+}
 
 // How often to re-check/re-mint the till's device session once connected —
 // independent of the token's own TTL (see DeviceSessionManager's refresh window).
@@ -71,6 +98,12 @@ export function DbProvider({ children, sidecarEndpoint }: DbProviderProps) {
     instance
       .init()
       .then(async () => {
+        if (cancelled) return;
+
+        // Must run before connectPowerSyncIfProvisioned() below — raw tables
+        // (posSyncSchema.withRawTables()) have to physically exist before
+        // PowerSync .connect() starts applying synced rows into them.
+        await ensureSyncedTablesExist(instance);
         if (cancelled) return;
         setDb(instance);
 

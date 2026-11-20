@@ -5,6 +5,7 @@ import { loadSalesReport } from "../../../lib/reports/sales";
 import { loadInventoryReport } from "../../../lib/reports/inventory";
 import { loadReconciliationReport } from "../../../lib/reports/reconciliation";
 import { computeProvisionalMarker, parseOptionalStoreId, parseReportDateRange, toRangeTimestamps, type ReportSearchParams } from "../../../lib/reports/shared";
+import Link from "next/link";
 import { ReportsDashboard } from "../../../components/reports-dashboard";
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<ReportSearchParams> }) {
@@ -36,7 +37,12 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const categories: { category_id: string; name: string }[] = categoriesResult.data ?? [];
 
   return (
-    <main className="p-md">
+    <main className="flex flex-col gap-sm p-md">
+      <div className="flex justify-end">
+        <Link href="/reports/schedules" className="text-body-md font-medium text-primary hover:underline">
+          Scheduled delivery →
+        </Link>
+      </div>
       <ReportsDashboard
         range={range}
         storeId={storeId}

@@ -2,8 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Harvest Retail OS design tokens — keep in sync with packages/config/tailwind/tokens.css */
+/* Harvest Retail OS design tokens — light block mirrors packages/config/tailwind/tokens.css.
+   The dark block and the success/warning/nav tokens are POS-only extensions. */
 :root {
+  color-scheme: light;
+
   --color-primary: 77 65 223;
   --color-on-primary: 255 255 255;
   --color-primary-container: 103 93 249;
@@ -54,12 +57,98 @@
 
   --color-outline: 119 117 135;
   --color-outline-variant: 199 196 216;
-  --color-background: 249 249 255;
+  --color-background: 243 244 251;
   --color-on-background: 21 28 39;
+
+  --color-success: 23 112 58;
+  --color-success-container: 222 243 229;
+  --color-warning: 138 75 8;
+  --color-warning-container: 251 235 210;
+  --color-nav: 37 24 110;
+  --color-on-nav: 255 255 255;
+  --color-nav-muted: 205 200 245;
 
   --radius: 0.5rem;
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-primary: 196 192 255;
+  --color-on-primary: 39 0 160;
+  --color-primary-container: 54 34 202;
+  --color-on-primary-container: 227 223 255;
+  --color-inverse-primary: 77 65 223;
+  --color-primary-fixed: 227 223 255;
+  --color-primary-fixed-dim: 196 192 255;
+  --color-on-primary-fixed: 16 0 105;
+  --color-on-primary-fixed-variant: 54 34 202;
+  --color-surface-tint: 214 211 255;
+
+  --color-secondary: 198 198 200;
+  --color-on-secondary: 47 49 50;
+  --color-secondary-container: 69 71 73;
+  --color-on-secondary-container: 226 226 228;
+
+  --color-tertiary: 198 198 199;
+  --color-on-tertiary: 47 49 49;
+  --color-tertiary-container: 69 71 71;
+  --color-on-tertiary-container: 226 226 226;
+
+  --color-error: 255 180 171;
+  --color-on-error: 105 0 5;
+  --color-error-container: 90 22 20;
+  --color-on-error-container: 255 218 214;
+
+  --color-surface: 20 20 30;
+  --color-on-surface: 229 227 240;
+  --color-on-surface-variant: 199 196 216;
+  --color-surface-variant: 70 69 85;
+  --color-surface-dim: 14 14 22;
+  --color-surface-bright: 56 56 70;
+  --color-surface-container-lowest: 26 26 38;
+  --color-surface-container-low: 33 33 47;
+  --color-surface-container: 38 38 53;
+  --color-surface-container-high: 46 46 62;
+  --color-surface-container-highest: 56 56 72;
+  --color-inverse-surface: 229 227 240;
+  --color-inverse-on-surface: 30 30 40;
+
+  --color-outline: 145 143 160;
+  --color-outline-variant: 60 59 78;
+  --color-background: 14 14 22;
+  --color-on-background: 229 227 240;
+
+  --color-success: 111 212 140;
+  --color-success-container: 22 52 31;
+  --color-warning: 240 179 92;
+  --color-warning-container: 58 43 20;
+  --color-nav: 22 15 58;
+  --color-on-nav: 236 234 255;
+  --color-nav-muted: 180 175 225;
+}
+
+html,
+body {
+  height: 100%;
+}
+
 body {
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  background-color: rgb(var(--color-background));
+  color: rgb(var(--color-on-background));
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
 }

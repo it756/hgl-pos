@@ -15,6 +15,7 @@ export type PromotionsViewProps = {
   skus: SkuOption[];
   stores: StoreOption[];
   promotions: Promotion[];
+  loyaltyTiers: { code: string; name: string }[];
 };
 
 const initialState: PromotionFormState = { error: null, success: false };
@@ -26,7 +27,7 @@ const TYPE_LABELS: Record<PromotionType, string> = {
   loyalty_tier: "Loyalty tier",
 };
 
-export function PromotionsView({ skus, stores, promotions }: PromotionsViewProps) {
+export function PromotionsView({ skus, stores, promotions, loyaltyTiers }: PromotionsViewProps) {
   const [state, formAction, pending] = useActionState(savePromotion, initialState);
   const [, startToggleTransition] = useTransition();
   const [editing, setEditing] = useState<Promotion | null>(null);
@@ -224,7 +225,22 @@ export function PromotionsView({ skus, stores, promotions }: PromotionsViewProps
             {type === "loyalty_tier" && (
               <div className="flex flex-col gap-1">
                 <Label htmlFor="tier">Loyalty tier</Label>
-                <Input id="tier" type="text" value={tier} onChange={(event) => setTier(event.target.value)} placeholder="gold, silver, …" />
+                <select
+                  id="tier"
+                  value={tier}
+                  onChange={(event) => setTier(event.target.value)}
+                  className="h-10 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-body-md font-body-md text-on-surface"
+                >
+                  <option value="" disabled>
+                    {loyaltyTiers.length === 0 ? "Create tiers under Customers first" : "Choose a tier"}
+                  </option>
+                  {loyaltyTiers.map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.name} ({option.code})
+                    </option>
+                  ))}
+                  {tier !== "" && !loyaltyTiers.some((option) => option.code === tier) && <option value={tier}>{tier} (not a current tier)</option>}
+                </select>
               </div>
             )}
 

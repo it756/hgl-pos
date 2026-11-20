@@ -34,7 +34,7 @@ export function CashierMenuPopover({ onLogout }: CashierMenuPopoverProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Till menu">
+        <Button variant="nav" size="icon" aria-label="Till menu">
           <Menu className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>

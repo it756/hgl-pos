@@ -557,7 +557,7 @@ All tasks conform to the required checklist format `- [ ] TXXX [P?] [Story?] Des
 - Setup / Foundational / Spike / Polish phases: no `[Story]` label ✓
 - User Story phases: every task carries `[US1]`…`[US9]` ✓
 - Every task references a specific file path ✓
-- Task IDs are sequential (T001…T166) ✓
+- Task IDs are sequential (T001…T183) ✓
 
 ---
 
@@ -645,3 +645,34 @@ Design-system integration (Stitch mockups → real tokens/components) and bug fi
 ### Resolved
 
 - [X] T166 Remote Supabase project `tsexohhlejoskpfbbsur` (linked via `supabase link`) had migration history recorded as `NNN` (e.g. `001`) vs local `NNNN` (e.g. `0001`). The "counts match, so remote likely already has the full schema" assumption was **wrong**: `supabase migration repair --status reverted 001..014` cleared the stale duplicate history rows, but the follow-up `supabase db push` of `0015_user_management_rls.sql` then failed with `relation "users" does not exist` — the remote's actual schema (27 tables: `app_user`, `branch`, `product`, `till_session`, `transaction`, `loyalty_entry`, etc., confirmed via a read-only `supabase db dump --linked --schema public`) was an entirely different, unrelated legacy app, never the retail-pos-mvp schema at all; the migration-history rows had been inserted without their SQL ever running. User confirmed the old schema was not needed. Resolved via `supabase db reset --linked` (drops+rebuilds remote from local migrations/seed — user-confirmed, not a routine operation). Surfaced and fixed one real bug along the way: `supabase/seed/seed.sql`'s `crypt()`/`gen_salt()` calls needed to be schema-qualified as `extensions.crypt(...)`/`extensions.gen_salt(...)` — the seed runner batches statements, so the file's own `SET search_path = public, extensions` doesn't reliably persist across batches on `db reset --linked`. Remote now has all 16 migrations (0001–0016) applied, seed loaded, `supabase db push --dry-run` reports "Remote database is up to date."
+---
+
+## Phase 14: Admin Console Completion (T167–T183)
+
+**Purpose**: Close the gap between the spec's admin-side FRs and what the console actually exposed — master data could previously only be created via seed/SQL, several backend capabilities (`provision_till`, `report_schedules`, `count_correction`) had no UI, and the dashboard/settings pages were stubs.
+
+### Foundation
+
+- [X] T167 Migration `supabase/migrations/0023_admin_completion.sql` (additive only): **RLS gap fix** — `sku_categories`, `sku_barcodes`, `store_sku_availability` shipped without RLS in 0001/0009 (writable by any authenticated/anon PostgREST caller); now read-authenticated / write-hq_admin, plus a column-scoped `store_manager` UPDATE on own-store availability. Generic `audit_master_data_change()` trigger (strips `pin_hash`/`device_credential_hash`) on stores, skus, categories, barcodes, availability, users, loyalty tiers, customers. New `store_sku_availability.reorder_qty`. New tables `system_settings` (seeded defaults, audited), `stock_counts` + `stock_count_lines`, `loyalty_tiers`, `customers`. New RPCs `admin_reset_till_credential`, `retire_till`, `start_stock_count`, `submit_stock_count`, `cancel_stock_count`
+- [X] T168 pgTAP `supabase/tests/admin_completion.spec.sql` (16 assertions): count snapshot + correction = counted − CURRENT stock (not the snapshot), double-submit rejected, server-owned count columns, manager RLS scope on availability/categories/tills, settings + till-retire audit rows. Updated `rls.spec.sql` inventory and scoped `audit_completeness.spec.sql`'s row count to exclude the new master-data audit rows
+- [X] T169 Route hygiene: `/prices`, `/promotions`, `/audit/prices` moved into the `(app)` route group (they previously rendered without the app shell); role-aware sidebar (`visibleNavGroups`, longest-prefix `activeHref`) driven by claims from `(app)/layout.tsx`
+- [X] T170 Shared helpers: `apps/admin/src/lib/settings/schema.ts` (typed, Zod-validated settings with per-key default fallback), `apps/admin/src/lib/format.ts` (money/qty/date formatting, Postgres-error → friendly message, form readers), `apps/admin/src/components/tab-nav.tsx`
+
+### Features
+
+- [X] T171 Home dashboard `apps/admin/src/app/(app)/page.tsx` + `lib/dashboard/home.ts`: net sales/transactions/refunds today vs yesterday (day boundary in `default_report_timezone`), per-store table with sync status, "needs attention" tiles (offline stores, oversold, low stock, expiring batches, pending adjustments, open transfers/counts/shifts), provisional-data banner (EC-16)
+- [X] T172 Stores `/stores` (FR-036): create/edit incl. timezone + offline thresholds, till counts
+- [X] T173 Tills `/tills` (FR-039, §9): list with latest heartbeat/app version; HQ provision (credential shown once), admin credential reset, retire with mandatory reason
+- [X] T174 Products `/catalog` (FR-001/018/020/023): SKUs (create/edit/deactivate, batch/expiry flags), barcodes (add/remove/primary, `skus.barcode` kept in sync), categories, per-store range + reorder point/qty (managers: own store, existing rows only)
+- [X] T175 CSV catalog import (`lib/catalog/csv.ts`): RFC-4180 parser, per-row Zod validation preview, ≤500 rows, upsert by code, barcode conflict detection, prices routed through `submitPriceChange` → `price_change_events` (FR-026 audit trail preserved)
+- [X] T176 Stock counts `/counts`, `/counts/[countId]` (FR-016): scoped snapshot, keyboard-friendly entry grid, bulk save, submit posts `count_correction` events via RPC, cancel
+- [X] T177 Adjustments (FR-017): store-manager "New adjustment" form with mandatory reason codes; auto-approved when |qty| ≤ `adjustment_approval_threshold_qty`, otherwise pending; resolved-history table; added to sidebar
+- [X] T178 Settings `/settings`: edits all `system_settings` keys (audited); fiscalisation banner (T143) retained
+- [X] T179 Report schedules `/reports/schedules` (FR-033): CRUD, pause/resume, "run at next cycle" (clears `last_run_at` for the hourly pg_cron job — honest about not being instant)
+- [X] T180 Staff management on `/users` (FR-035): new Edge Function `supabase/functions/invite-staff-user` (caller checked via `assert_caller_is_hq_admin`, service-role `auth.admin.createUser` + `public.users` insert with rollback); invite store managers/HQ admins with temp password + supervisor PIN; edit role/store; self-demotion/deactivation blocked server-side. Note: a long-running local edge-runtime container only lists functions present at creation — run `supabase stop` + `supabase start` to pick it up
+- [X] T181 Sales `/sales`, `/sales/[saleId]` + Shifts `/shifts` (FR-008/029/032): URL-driven filters, server-side pagination, sale detail with as-charged prices (FR-028), promotions, tenders, void/refund chain; shift cash-up with over/short highlighting and drill-through to the shift's sales
+- [X] T182 Customers `/customers` (FR-037, optional): customers (normalized unique phone, tier, credit limit, home store) + loyalty tiers; promotions' loyalty-tier field now selects from `loyalty_tiers`. **Gap**: till-side customer lookup/attach not wired (no PowerSync stream yet)
+
+### Tests
+
+- [X] T183 Vitest `apps/admin/tests/unit/admin/*.spec.ts` (27 tests: CSV parser/validation, settings parsing, threshold + history folding, count variance, schedule due logic, customer/staff/store schemas, sales/shift filters, dashboard maths, sidebar role filtering) and Playwright `apps/admin/tests/e2e/admin-completion.spec.ts` (route smoke for both roles; store → till provision → SKU → tier → customer → settings audit; CSV import with audited price; manager count submit + auto-approved adjustment)

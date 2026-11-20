@@ -100,12 +100,12 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-md flex-col justify-center p-md">
+    <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-md flex-col justify-center p-3.5">
       <Card>
         <CardHeader>
           <CardTitle>{selectedUser === null ? "Who's on the till?" : `Hi, ${selectedUser.full_name}`}</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-md">
+        <CardContent className="flex flex-col gap-4">
           {loadError !== null && (
             <p className="text-body-md font-body-md text-destructive">Could not load cashier roster: {loadError}</p>
           )}
@@ -118,7 +118,7 @@ export default function LoginPage() {
                   type="button"
                   variant="outline"
                   size="lg"
-                  className="h-16"
+                  className="h-16 text-body-lg"
                   onClick={() => setSelectedUser(cashier)}
                 >
                   {cashier.full_name}
@@ -150,7 +150,7 @@ export default function LoginPage() {
                   <Button
                     key={key}
                     type="button"
-                    variant={key === "clear" || key === "back" ? "ghost" : "secondary"}
+                    variant={key === "clear" || key === "back" ? "ghost" : "outline"}
                     size="lg"
                     className="h-14 text-headline-md"
                     onClick={() => handleKeyPress(key)}
